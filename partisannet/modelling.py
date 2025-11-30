@@ -44,6 +44,6 @@ if __name__ == "__main__":
     dataloaders = get_dataloaders("mbib-base", batch_size=32)
     sbert_model = SBERTClassifier()
     model = PartisanNetModel(sbert_model)
-    trainer = L.Trainer(max_epochs=5)
+    trainer = L.Trainer(accelerator="gpu", devices=1, max_epochs=5)
     trainer.fit(model, dataloaders['train'], dataloaders['val'])
 
