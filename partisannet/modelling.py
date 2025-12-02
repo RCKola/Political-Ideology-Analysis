@@ -1,7 +1,7 @@
 import lightning as L
 import torch.nn as nn
 import torch.optim as optim
-
+from transformers import get_cosine_schedule_with_warmup
 
 class PartisanNetModel(L.LightningModule):
     def __init__(self, model, learning_rate=1e-3):
@@ -34,16 +34,51 @@ class PartisanNetModel(L.LightningModule):
         return loss
 
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=self.learning_rate)
-        return optimizer
+        # 1. Define the Optimizer (AdamW is best for Transformers)
+        optimizer = optim.AdamW(self.parameters(), lr=2e-5, weight_decay=0.01)
+
+        # 2. Calculate Total Training Steps
+        # (batches_per_epoch * max_epochs)
+        # self.trainer.estimated_stepping_batches is a handy PL shortcut
+        total_steps = self.trainer.estimated_stepping_batches
+
+        # 3. Define the Scheduler
+        # 10% warmup is standard
+        warmup_steps = int(0.1 * total_steps) 
+        
+        scheduler = get_cosine_schedule_with_warmup(
+            optimizer,
+            num_warmup_steps=warmup_steps,
+            num_training_steps=total_steps
+        )
+
+        # 4. Return dictionary format for Lightning
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "interval": "step", # Update the LR every batch, not every epoch
+                "frequency": 1
+            }
+        }
 
 if __name__ == "__main__":
     from data.datamodule import get_dataloaders
     from models.classifier import SBERTClassifier
+    from lightning.pytorch.callbacks import EarlyStopping
+
+    early_stop_callback = EarlyStopping(
+    monitor="val_loss",  # Watch the validation loss
+    min_delta=0.00,      # Improvement must be at least this much
+    patience=6,          # Stop if no improvement for 3 epochs
+    verbose=True,
+    mode="min"           # "min" because we want loss to go DOWN
+    )
+
 
     dataloaders = get_dataloaders("mbib-base", batch_size=32)
     sbert_model = SBERTClassifier()
     model = PartisanNetModel(sbert_model)
-    trainer = L.Trainer(accelerator="gpu", devices=1, max_epochs=5)
+    trainer = L.Trainer(accelerator="gpu", devices=1, max_epochs=30, callbacks=[early_stop_callback])
     trainer.fit(model, dataloaders['train'], dataloaders['val'])
 
