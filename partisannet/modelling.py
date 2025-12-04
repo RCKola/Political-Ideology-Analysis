@@ -76,7 +76,7 @@ if __name__ == "__main__":
     )
 
 
-    dataloaders = get_dataloaders("mbib-base", batch_size=32)
+    dataloaders = get_dataloaders("LibCon", batch_size=32)
     sbert_model = SBERTClassifier()
     model = PartisanNetModel(sbert_model)
     trainer = L.Trainer(accelerator="gpu", devices=1, max_epochs=30, callbacks=[early_stop_callback])
