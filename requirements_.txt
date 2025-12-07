@@ -3,3 +3,4 @@ hydra-core
 datasets
 sentence-transformers
 kagglehub
+bertopic
