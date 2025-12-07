@@ -5,15 +5,15 @@ from transformers import AutoTokenizer
 import kagglehub
 from kagglehub import KaggleDatasetAdapter
 
-def combine_text_batched(data: Dataset) -> dict[str, list[str]]:
+def combine_text_batched(dataset: Dataset) -> dict[str, list[str]]:
     """Combines 'Title' and 'Text' columns into a single 'text' column.
     Args:
-        data: A dataset object containing 'Title' and 'Text' columns.
+        dataset: A dataset object containing 'Title' and 'Text' columns.
     Returns:
         dict[str, list[str]]: A dictionary with new 'text' column for mapping.
     """
     combined_texts = []
-    for title, body in zip(data["Title"], data["Text"]):
+    for title, body in zip(dataset["Title"], dataset["Text"]):
         parts = [title, body]
         clean_row = " ".join([str(p) for p in parts if p])
         combined_texts.append(clean_row)
@@ -24,7 +24,7 @@ def load_datasets(dataset_name: str) -> Dataset:
     Args:
         dataset_name (str): Name of the dataset to load. Supported: "mbib-base", "LibCon"
     Returns:
-        Dataset: The loaded dataset.
+        ds (Dataset): The loaded dataset.
     """
     if dataset_name == "mbib-base":
         ds = load_dataset("mediabiasgroup/mbib-base", split="political_bias")
@@ -41,7 +41,7 @@ def load_datasets(dataset_name: str) -> Dataset:
         new_features = ds.features.copy()
         new_features["label"] = ClassLabel(names=["Conservative", "Liberal"])
         ds = ds.cast(new_features)
-        ds = ds.map(combine_text_batched, batched=True)
+        ds = ds.map(combine_text_batched, batched=True, num_proc=4)
         ds = ds.remove_columns(["Title", "Text", "Score", "URL","Num of Comments", "Subreddit", "Date Created"])
     else:
         raise ValueError(f"Dataset {dataset_name} not supported.")
@@ -80,7 +80,25 @@ def get_dataloaders(dataset: str, batch_size: int) -> dict[str, DataLoader]:
         "val": val_loader,
         "test": test_loader
     }
-    return data_dict 
+    return data_dict
+
+def include_topics(dataset: Dataset, num_topics: int | None = None, remove_stopwords: bool = True) -> tuple[Dataset, object]:
+    """Adds topic modeling information to the dataset using BERTopic.
+    Args:
+        dataset (Dataset): The dataset to augment with topic information.
+        num_topics (int | None): Number of topics to extract. If None, let BERTopic decide.
+        remove_stopwords (bool): Whether to remove stopwords during topic modeling.
+    Returns:
+        dataset, topic_model (tuple[Dataset, object]): The augmented dataset with 'topic' and 'topic_prob' columns, and the trained BERTopic model.
+    """
+    from partisannet.models.topics import get_topics
+
+    docs = [text for text in dataset['text']]
+    topic_model, topics, probs = get_topics(docs, num_topics=num_topics, remove_stopwords=remove_stopwords)
+
+    dataset = dataset.add_column('topic', topics)
+    dataset = dataset.add_column('topic_prob', probs)
+    return dataset, topic_model
 
 if __name__ == "__main__":
     dataloaders = get_dataloaders("LibCon", batch_size=32)

@@ -14,4 +14,14 @@ def show_topics():
     print("Topic labels:", topic_model.generate_topic_labels(nr_words=1))
 
 if __name__ == "__main__":
-    show_topics()
+    # show_topics()
+
+    from partisannet.data.datamodule import include_topics, load_datasets
+    dataset = load_datasets("LibCon")
+    dataset, topic_model = include_topics(dataset, remove_stopwords=True)
+    print(dataset.column_names)
+    print("Topic Info:", topic_model.get_topic_info())
+    print("Topic labels:", topic_model.generate_topic_labels(nr_words=1))
+    print("Sample topics from dataset:")
+    for i in range(5):
+        print(f"Doc: {dataset[i]['text'][:50]}... Topic: {dataset[i]['topic']}, Prob: {dataset[i]['topic_prob']}")
