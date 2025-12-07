@@ -1,48 +1,40 @@
-from datasets import load_dataset
+from datasets import load_dataset, Dataset
 from datasets import ClassLabel
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer
 import kagglehub
 from kagglehub import KaggleDatasetAdapter
 
-def combine_text_batched(data):
-    # 'examples' is a dictionary of lists: {"Title": ["t1", "t2"], "Post Text": ["b1", "b2"]}
-    
+def combine_text_batched(data: Dataset) -> dict[str, list[str]]:
+    """Combines 'Title' and 'Text' columns into a single 'text' column.
+    Args:
+        data: A dataset object containing 'Title' and 'Text' columns.
+    Returns:
+        dict[str, list[str]]: A dictionary with new 'text' column for mapping.
+    """
     combined_texts = []
-    
-    # We must zip the columns to process them row-by-row
     for title, body in zip(data["Title"], data["Text"]):
-        
-        # 1. Collect parts
         parts = [title, body]
-        
-        # 2. Filter & Join
-        # - str(p): Converts numbers/non-strings to text safely
-        # - if p: Skips None and empty strings ""
         clean_row = " ".join([str(p) for p in parts if p])
-        
         combined_texts.append(clean_row)
-    
-    # Return a dictionary with the new column list
     return {"text": combined_texts}
 
-def get_dataloaders(dataset: str, batch_size: int) -> DataLoader:
-    if dataset == "mbib-base":
-        
+def load_datasets(dataset_name: str) -> Dataset:
+    """Load dataset based on the given name.
+    Args:
+        dataset_name (str): Name of the dataset to load. Supported: "mbib-base", "LibCon"
+    Returns:
+        Dataset: The loaded dataset.
+    """
+    if dataset_name == "mbib-base":
         ds = load_dataset("mediabiasgroup/mbib-base", split="political_bias")
-    elif dataset == "LibCon":
+    elif dataset_name == "LibCon":
         file_path = "file_name.csv"
         ds = kagglehub.dataset_load(
-        KaggleDatasetAdapter.HUGGING_FACE,
-        "neelgajare/liberals-vs-conservatives-on-reddit-13000-posts",
-        file_path,
-        pandas_kwargs={"encoding": "latin1",
-                       "compression": "zip"
-                       }
-        # Provide any additional arguments like 
-        # sql_query or pandas_kwargs. See the 
-        # documenation for more information:
-        # https://github.com/Kaggle/kagglehub/blob/main/README.md#kaggledatasetadapterpandas
+            KaggleDatasetAdapter.HUGGING_FACE,
+            "neelgajare/liberals-vs-conservatives-on-reddit-13000-posts",
+            file_path,
+            pandas_kwargs={"encoding": "latin1", "compression": "zip"}
         )
         
         ds = ds.rename_column("Political Lean", "label")
@@ -52,15 +44,26 @@ def get_dataloaders(dataset: str, batch_size: int) -> DataLoader:
         ds = ds.map(combine_text_batched, batched=True)
         ds = ds.remove_columns(["Title", "Text", "Score", "URL","Num of Comments", "Subreddit", "Date Created"])
     else:
-        raise ValueError(f"Dataset {dataset} not supported.")
-    # Initialize tokenizer
+        raise ValueError(f"Dataset {dataset_name} not supported.")
+    return ds
+
+def get_dataloaders(dataset: str, batch_size: int) -> dict[str, DataLoader]:
+    """Load dataset and return dataloaders for training, validation, and testing.
+    Args:
+        dataset (str): Name of the dataset to load. Supported: "mbib-base", "LibCon"
+        batch_size (int): Batch size for the dataloaders.
+    Returns:
+        dict[str, DataLoader]: A dictionary containing 'train', 'val', and 'test' dataloaders.
+    """
+    ds = load_datasets(dataset)
     
+    # Initialize tokenizer
     model_name='all-MiniLM-L6-v2'
     tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/" + model_name)
     def tokenize(batch):
         return tokenizer(batch['text'], padding='max_length', truncation=True, max_length=256)
 
-    
+    # Preprocess dataset
     ds = ds.filter(lambda x: x['text'] is not None)
     ds = ds.map(tokenize, batched=True)
     ds.set_format('torch')
@@ -68,9 +71,10 @@ def get_dataloaders(dataset: str, batch_size: int) -> DataLoader:
     split_data = ds.train_test_split(test_size=0.1, seed=42)
     train_val_data = split_data['train'].train_test_split(test_size=0.2, seed=42)
 
+    # TODO: revisit dataset splitting strategy
     train_loader = DataLoader(train_val_data['train'], batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(train_val_data['test'], shuffle=False)
-    test_loader = DataLoader(split_data['test'], shuffle=False)
+    val_loader = DataLoader(train_val_data['test'], batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(split_data['test'], batch_size=batch_size, shuffle=False)
     data_dict = {
         "train": train_loader,
         "val": val_loader,
