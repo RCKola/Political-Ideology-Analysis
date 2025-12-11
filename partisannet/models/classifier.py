@@ -5,7 +5,7 @@ from sentence_transformers import SentenceTransformer
 
 
 class SBERTClassifier(nn.Module):
-    def __init__(self, model_name='all-MiniLM-L6-v2', num_classes=2, freeze_backbone=False, dropout_prob=0.3):
+    def __init__(self, model_name='all-MiniLM-L6-v2', num_classes=2, freeze_backbone=True, dropout_prob=0.3):
         super(SBERTClassifier, self).__init__()
         self.sbert = SentenceTransformer(model_name)
         if freeze_backbone:
@@ -22,7 +22,7 @@ class SBERTClassifier(nn.Module):
         )
         print("SBERT modules:", (module for module in self.sbert.named_children()))
 
-    def forward(self, sentences):
+    def forward(self, sentences, return_embeddings=False):
         # 1. Tokenize the sentences (This creates tensors on the CPU)
         data_dict = self.sbert.tokenize(sentences)
         
@@ -38,6 +38,10 @@ class SBERTClassifier(nn.Module):
         
         # The rest of your code remains the same...
         embeddings = output_dict['sentence_embedding']
+
+
+        if return_embeddings:
+            return embeddings
         logits = self.classifier(embeddings)
         return logits
     

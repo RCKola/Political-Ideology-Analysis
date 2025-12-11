@@ -47,7 +47,7 @@ def load_datasets(dataset_name: str) -> Dataset:
         raise ValueError(f"Dataset {dataset_name} not supported.")
     return ds
 
-def get_dataloaders(dataset: str, batch_size: int) -> dict[str, DataLoader]:
+def get_dataloaders(dataset: str, batch_size: int, split = True) -> dict[str, DataLoader]:
     """Load dataset and return dataloaders for training, validation, and testing.
     Args:
         dataset (str): Name of the dataset to load. Supported: "mbib-base", "LibCon"
@@ -67,7 +67,9 @@ def get_dataloaders(dataset: str, batch_size: int) -> dict[str, DataLoader]:
     ds = ds.filter(lambda x: x['text'] is not None)
     ds = ds.map(tokenize, batched=True)
     ds.set_format('torch')
-
+    if not split:
+        loader = DataLoader(ds, batch_size=batch_size, shuffle=True)
+        return {"train": loader, "val": loader, "test": loader}
     split_data = ds.train_test_split(test_size=0.1, seed=42)
     train_val_data = split_data['train'].train_test_split(test_size=0.2, seed=42)
 
