@@ -39,7 +39,7 @@ def load_datasets(dataset_name: str) -> Dataset:
         
         ds = ds.rename_column("Political Lean", "label")
         new_features = ds.features.copy()
-        new_features["label"] = ClassLabel(names=["Conservative", "Liberal"])
+        new_features["label"] = ClassLabel(names=["Conservative", "Liberal"]) # 0: Conservative, 1: Liberal
         ds = ds.cast(new_features)
         ds = ds.map(combine_text_batched, batched=True, num_proc=4)
         ds = ds.remove_columns(["Title", "Text", "Score", "URL","Num of Comments", "Subreddit", "Date Created"])
@@ -47,7 +47,7 @@ def load_datasets(dataset_name: str) -> Dataset:
         raise ValueError(f"Dataset {dataset_name} not supported.")
     return ds
 
-def get_dataloaders(dataset: str, batch_size: int, split = True) -> dict[str, DataLoader]:
+def get_dataloaders(dataset: str, batch_size: int, split = True, num_topics = None) -> dict[str, DataLoader]:
     """Load dataset and return dataloaders for training, validation, and testing.
     Args:
         dataset (str): Name of the dataset to load. Supported: "mbib-base", "LibCon"
@@ -55,8 +55,8 @@ def get_dataloaders(dataset: str, batch_size: int, split = True) -> dict[str, Da
     Returns:
         dict[str, DataLoader]: A dictionary containing 'train', 'val', and 'test' dataloaders.
     """
-    ds = load_datasets(dataset)
-    
+    dst = load_datasets(dataset)
+    ds, topic_model = include_topics(dst, remove_stopwords=True, num_topics = num_topics)
     # Initialize tokenizer
     model_name='all-MiniLM-L6-v2'
     tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/" + model_name)
@@ -69,7 +69,7 @@ def get_dataloaders(dataset: str, batch_size: int, split = True) -> dict[str, Da
     ds.set_format('torch')
     if not split:
         loader = DataLoader(ds, batch_size=batch_size, shuffle=True)
-        return {"train": loader, "val": loader, "test": loader}
+        return {"train": loader, "val": loader, "test": loader}, topic_model
     split_data = ds.train_test_split(test_size=0.1, seed=42)
     train_val_data = split_data['train'].train_test_split(test_size=0.2, seed=42)
 
@@ -82,7 +82,7 @@ def get_dataloaders(dataset: str, batch_size: int, split = True) -> dict[str, Da
         "val": val_loader,
         "test": test_loader
     }
-    return data_dict
+    return data_dict, topic_model
 
 def include_topics(dataset: Dataset, num_topics: int | None = None, remove_stopwords: bool = True) -> tuple[Dataset, object]:
     """Adds topic modeling information to the dataset using BERTopic.
