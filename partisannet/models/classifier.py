@@ -5,7 +5,7 @@ from sentence_transformers import SentenceTransformer
 
 
 class SBERTClassifier(nn.Module):
-    def __init__(self, model_name='all-MiniLM-L6-v2', num_classes=2, freeze_backbone=True, dropout_prob=0.3):
+    def __init__(self, model_name='all-MiniLM-L6-v2', num_classes=2, freeze_backbone=False, dropout_prob=0.3):
         super(SBERTClassifier, self).__init__()
         self.sbert = SentenceTransformer(model_name)
         if freeze_backbone:
@@ -14,12 +14,15 @@ class SBERTClassifier(nn.Module):
                 # --------------------
 
         self.embed_dim = self.sbert.get_sentence_embedding_dimension()
+        """
         self.classifier = nn.Sequential(
             nn.Linear(self.embed_dim, 256),
             nn.ReLU(),
             nn.Dropout(dropout_prob),
             nn.Linear(256, num_classes)
         )
+        """
+        self.classifier = nn.Linear(self.embed_dim, num_classes)
         print("SBERT modules:", (module for module in self.sbert.named_children()))
 
     def forward(self, sentences, return_embeddings=False):

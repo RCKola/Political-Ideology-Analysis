@@ -5,7 +5,7 @@ from partisannet.data.datamodule import get_dataloaders
 from partisannet.models.classifier import SBERTClassifier
 from partisannet.data.datamodule import include_topics, load_datasets
 from partisannet.modelling import PartisanNetModel 
-from partisannet.models.get_embeddings import generate_embeddings
+from partisannet.models.get_embeddings import generate_embeddings, get_finetuned_embeddings
 from datasets import load_from_disk
 
 import matplotlib.pyplot as plt
@@ -15,6 +15,16 @@ import seaborn as sns
 import numpy as np
 from collections import Counter
 from sklearn.metrics.pairwise import cosine_similarity
+
+import matplotlib.pyplot as plt
+import pandas as pd
+from sklearn.svm import SVC
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, accuracy_score
+from imblearn.over_sampling import RandomOverSampler
+from partisannet.models.get_embeddings import get_finetuned_embeddings
+from datasets import Dataset
+
 
 def is_top_k_match(embeddings_0, embeddings_1, k=3):
     
@@ -73,8 +83,8 @@ def run_erasure_two_sources(
         k=5, 
         top_k_retrieval=20, 
         max_n_clusters=32,
-        source_1 = "has topic",
-        source_2 = "outlier"
+        source_1 = "left",
+        source_2 = "right"
     ): 
     numeric_labels = topic_labels.clone()
     label_mask0 = (topic_labels == 0).numpy()
@@ -272,57 +282,202 @@ def run_erasure_two_sources(
     plt.savefig('exact_pairs.png')
     plt.close()
 
+def  svm_erasure(
+        embeddings,
+        embeddings_erased,
+        topic_labels,
+        labels,
+
+):
+    embeddings_train, embeddings_test, labels_train, labels_test = train_test_split(embeddings.numpy(), labels.numpy(), test_size=0.2, random_state=42)
+    embeddings_erased_train, embeddings_erased_test, _, _ = train_test_split(embeddings_erased.numpy(), labels.numpy(), test_size=0.2, random_state=42)
+
+    ros = RandomOverSampler(random_state=42)
+    embeddings_resampled, labels_resampled = ros.fit_resample(embeddings_train, labels_train)
+    embeddings_erased_resampled, labels_erased_resampled = ros.fit_resample(embeddings_erased_train, labels_train)
+
+    clf_tot = SVC(kernel='linear', random_state=42, C=2.0, class_weight='balanced')
+    clf_tot.fit(embeddings_resampled, labels_resampled)
+    predictions_tot = clf_tot.predict(embeddings_test)
+
+    print("Classification Report Before Erasure:")
+    print(classification_report(labels_test, predictions_tot))
+
+    accuracy_tot = accuracy_score(labels_test, predictions_tot)
+    print(f"Accuracy Before Erasure: {accuracy_tot:.4f}")
+
+    clf_era = SVC(kernel='linear', random_state=42, C=2.0, class_weight='balanced')
+    clf_era.fit(embeddings_erased_resampled, labels_erased_resampled) 
+
+    predictions_era = clf_era.predict(embeddings_erased_test)
+    print("Classification Report After Erasure:")
+    print(classification_report(labels_test, predictions_era))
+
+    accuracy_era = accuracy_score(labels_test, predictions_era)
+    print(f"Accuracy After Erasure: {accuracy_era:.4f}")
+
+def plot_topic_distribution(topic_model, dataset, topics, partisan_labels):
+        # 1. Convert tensors to numpy (if they aren't already)
+        # We use .cpu() just in case they are on the GPU
+        topics_np = topics.cpu().numpy() if isinstance(topics, torch.Tensor) else topics
+        labels_np = partisan_labels.cpu().numpy() if isinstance(partisan_labels, torch.Tensor) else partisan_labels
+
+        # 2. Create a DataFrame
+        df = pd.DataFrame({
+            'Topic_ID': topics_np,
+            'Ideology': labels_np
+        })
+
+        # 3. Create the Pivot Table
+        # This counts occurrences of each ideology per topic
+        # 0 = Left (usually), 1 = Right (usually)
+        # 1. Create the Pivot Table
+        # This creates columns named 0 and 1 (based on your ideology labels)
+        topic_stats = df.pivot_table(
+            index='Topic_ID', 
+            columns='Ideology', 
+            aggfunc='size', 
+            fill_value=0
+        )
+
+        # 2. Rename columns IMMEDIATELY
+        # Adjust this mapping if 0 is Right and 1 is Left in your data
+        topic_stats.columns = ['Left_Count', 'Right_Count'] 
+
+        # 3. Calculate new columns (Total and Percentages)
+        topic_stats['Total'] = topic_stats['Left_Count'] + topic_stats['Right_Count']
+        topic_stats['%_Left'] = (topic_stats['Left_Count'] / topic_stats['Total'] * 100).round(1)
+        topic_stats['%_Right'] = (topic_stats['Right_Count'] / topic_stats['Total'] * 100).round(1)
+
+        # 4. Get Topic Names and Merge
+        topic_names = topic_model.get_topic_info()[['Topic', 'Name']]
+        topic_stats = topic_stats.merge(topic_names, left_on='Topic_ID', right_on='Topic', how='left')
+
+        # 5. Clean Topic Names
+        topic_stats['Name'] = topic_stats['Name'].apply(lambda x: "_".join(x.split("_")[1:]))
+
+        # 6. NOW you can safely reorder/select columns
+        # Because they all exist now
+        topic_stats = topic_stats[['Topic', 'Name', 'Left_Count', 'Right_Count', '%_Left', '%_Right', 'Total']]
+
+        # 7. Sort and Display
+        topic_stats = topic_stats.sort_values('Total', ascending=False)
+        print(topic_stats)
+
+        # Optional: Save to CSV for your report
+        # topic_stats.to_csv("topic_breakdown.csv")
+        
+
+        # Plot a stacked bar chart
+        topic_stats[['Left_Count', 'Right_Count']].plot(kind='bar', stacked=True, figsize=(12, 6))
+        plt.title("Topic Distribution by Political Leaning")
+        plt.ylabel("Number of Embeddings")
+        plt.xlabel("Topic ID")
+        plt.show()
+        
+
+
+
 if __name__ == "__main__":
     #show_topics()
     #cache_path = "./cached_processed_dataset"
-    embeddings_cache_path = "./cached_embeddings.pt"
-    partisan_labels_cache_path = "./cached_partisan_labels.pt"
-    topics_cache_path = "./cached_topics.pt"
-    renew_cache = False
-    # 2. Check if cache exists
-    if os.path.exists(partisan_labels_cache_path) and os.path.exists(topics_cache_path) and os.path.exists(embeddings_cache_path) and not renew_cache:
-        print("Loading dataset and embeddings from disk...")
-        #dataset = load_from_disk(cache_path)
-        embeddings = torch.load(embeddings_cache_path)
-        partisan_labels = torch.load(partisan_labels_cache_path)
-        topics = torch.load(topics_cache_path)
-    else:
-        print("Cache not found. Processing data...")
-        # --- Your Expensive Logic Here ---
-        dataloaders, topic_model = get_dataloaders("LibCon", batch_size=32, split=False, num_topics=5)
-        
-        # Generate Embeddings
-        embeddings, partisan_labels, topics = generate_embeddings(dataloaders['train'])
-        
-        # Process Dataset (Map/Filter)
-        #dataset = load_datasets("LibCon")
-        #dataset, topic_model = include_topics(dataset, remove_stopwords=True)
-        
-        # --- Save to Disk for Next Time ---
-        print("Saving dataset and embeddings to disk...")
-        #dataset.save_to_disk(cache_path)
-        torch.save(embeddings, embeddings_cache_path)
-        torch.save(partisan_labels, partisan_labels_cache_path)
-        torch.save(topics, topics_cache_path)
+    single_shot = False
+    trained_embeddings = True
 
+
+    dataloaders, topic_model = get_dataloaders("LibCon", batch_size=32, split=False, num_topics=None, cluster_in_k=40, renew_cache=False)
+    
+    
+    if not trained_embeddings:
+    # Generate Embeddings
+        embeddings, partisan_labels, topics = generate_embeddings(dataloaders['train'])
+    else:
+        print("Loading pre-computed embeddings from disk...")
+        embeddings, partisan_labels, old_topics = generate_embeddings(dataloaders['train'], path = "data/fine_tuned_sbert")
+
+        print("Including topics...")
+        temp_ds = Dataset.from_dict({'text': dataloaders['train'].dataset['text']})
+        ds_with_topics, topic_model = include_topics(temp_ds, num_topics=None, cluster_in_k=40, embeddings=embeddings.cpu().numpy())
+
+        # Extract the topic IDs
+        topics_list = ds_with_topics["topic"]
+        topics = torch.tensor(topics_list).long().to(embeddings.device)
+       
 
     print(f"Extracted embeddings shape: {embeddings.shape}")
-  
-    topics_label = (topics == -1).long()
+    print(f"Extracted topics: {topics.shape}")
+
     
-    eraser = LeaceEraser.fit(embeddings, topics_label)
-    embeddings_erased = eraser(embeddings)
+
+    # 1. Setup Data
+    # Ensure these are PyTorch tensors
+    # embeddings: shape (N, D)
+    # reduced_topics: shape (N, ) with values 0-9 (from reduce_topics)
+    current_embeddings = embeddings.clone() 
+    unique_topics = torch.unique(topics).tolist()
+
+    if not single_shot:
+   
+        print(f"Starting iterative erasure for {len(unique_topics)} topics...")
+
+        # 2. Iterative Loop
+        for topic_id in unique_topics:
+            # A. Create Binary Labels for "Topic X vs. Everything Else"
+            # We use (topics == topic_id) to create a boolean mask, then .long() for 0/1 integers
+            binary_labels = (topics == topic_id).long()
+            
+            # B. Fit Eraser on the CURRENT embeddings
+            # Note: We fit on 'current_embeddings', which might have already had Topic 0, 1, etc. removed
+            eraser = LeaceEraser.fit(current_embeddings, binary_labels)
+            
+            # C. Apply Erasure
+            current_embeddings = eraser(current_embeddings)
+            
+            print(f"-> Erased info for Topic {topic_id}") 
+
+        # 3. Final Result
+        embeddings_erased = current_embeddings
+        print("Done! All topics sequentially erased.")
+    
+    
+    else:
+        # Single-shot erasure for all topics at once
+        print(f"Starting single-shot erasure for {len(unique_topics)} topics...")
+        eraser = LeaceEraser.fit(embeddings, topics)
+        embeddings_erased = eraser(embeddings)
+        
+    print(topic_model.get_topic(0)[:3])
     print(f"Erased embeddings shape: {embeddings_erased.shape}")
 
-    run_erasure_two_sources(
+    plot_topic_distribution(topic_model, dataloaders['train'].dataset, topics, partisan_labels)
+
+    from sklearn.metrics import adjusted_rand_score
+
+    # Move tensors to CPU for scikit-learn
+    old_cpu = old_topics.cpu().numpy() if hasattr(old_topics, 'cpu') else old_topics
+    new_cpu = topics.cpu().numpy() if hasattr(topics, 'cpu') else topics
+
+    # Calculate similarity
+    score = adjusted_rand_score(old_cpu, new_cpu)
+
+    print(f"Topic Similarity Score (ARI): {score:.4f}")
+
+
+    svm_erasure(
         embeddings=embeddings, 
         embeddings_erased=embeddings_erased,
-        topic_labels=topics_label,
-        k=5,
-        top_k_retrieval=20,
-        max_n_clusters=32
+        topic_labels=unique_topics,
+        labels=partisan_labels
     )
-        
+    run_erasure_two_sources(
+        embeddings=embeddings,
+        embeddings_erased=embeddings_erased,
+        topic_labels=partisan_labels,
+        k=10,
+        top_k_retrieval=20,
+        max_n_clusters=32,
+        source_1 = "left",
+        source_2 = "right")
     
 """     print(dataset.column_names)
     print("Topic Info:", topic_model.get_topic_info())

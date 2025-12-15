@@ -1,6 +1,7 @@
 import lightning as L
 import torch.nn as nn
 import torch.optim as optim
+import torch
 from transformers import get_cosine_schedule_with_warmup
 
 class PartisanNetModel(L.LightningModule):
@@ -32,6 +33,9 @@ class PartisanNetModel(L.LightningModule):
         self.log('val_accuracy', accuracy)
         self.log('val_loss', loss)
         return loss
+    def predict_step(self, batch, batch_idx):
+        sentences = batch['text'] # Extract just the list of strings
+        return self.model(sentences) # Pass only the strings to the SBERT model
 
     def configure_optimizers(self):
         # 1. Define the Optimizer (AdamW is best for Transformers)
@@ -63,22 +67,45 @@ class PartisanNetModel(L.LightningModule):
         }
 
 if __name__ == "__main__":
-    from data.datamodule import get_dataloaders
-    from models.classifier import SBERTClassifier
+    from partisannet.data.datamodule import get_dataloaders
+    from partisannet.models.classifier import SBERTClassifier
     from lightning.pytorch.callbacks import EarlyStopping
 
     early_stop_callback = EarlyStopping(
     monitor="val_loss",  # Watch the validation loss
-    min_delta=0.00,      # Improvement must be at least this much
+    min_delta=0.001,      # Improvement must be at least this much
     patience=6,          # Stop if no improvement for 3 epochs
     verbose=True,
     mode="min"           # "min" because we want loss to go DOWN
     )
 
 
-    dataloaders = get_dataloaders("LibCon", batch_size=32)
+    dataloaders, topic_model = get_dataloaders("LibCon", batch_size=32, split=True, num_topics=None, cluster_in_k=40, renew_cache=False)
     sbert_model = SBERTClassifier()
     model = PartisanNetModel(sbert_model)
-    trainer = L.Trainer(accelerator="gpu", devices=1, max_epochs=30, callbacks=[early_stop_callback])
+    trainer = L.Trainer(accelerator="gpu", devices=1, max_epochs=50, callbacks=[early_stop_callback])
     trainer.fit(model, dataloaders['train'], dataloaders['val'])
+
+    predictions = trainer.predict(model, dataloaders['test'])
+    print("Predictions on test set completed.")
+    accuracy = torch.cat([pred.argmax(dim=1) for pred in predictions], dim=0)
+    print(f"Test Accuracy: {accuracy.float().mean().item():.4f}")
+    
+
+
+
+    print("Loading best model weights...")
+    # 1. Load the best checkpoint found by EarlyStopping
+    best_path = trainer.checkpoint_callback.best_model_path
+    # We reload the weights into your existing wrapper
+    best_lightning_model = PartisanNetModel.load_from_checkpoint(best_path, model=sbert_model)
+
+    print("Saving Fine-Tuned SBERT to disk...")
+    # 2. Extract ONLY the inner SBERT (the "feature extractor")
+    # We access: LightningModule -> SBERTClassifier -> SentenceTransformer
+    finetuned_sbert = best_lightning_model.model.sbert 
+
+    # 3. Save it as a standard SentenceTransformer
+    # This allows you to load it later with one line of code
+    finetuned_sbert.save("data/fine_tuned_sbert")
 

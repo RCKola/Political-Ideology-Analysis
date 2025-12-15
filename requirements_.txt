@@ -7,3 +7,4 @@ bertopic
 concept_erasure
 matplotlib
 seaborn
+imbalanced_learn
