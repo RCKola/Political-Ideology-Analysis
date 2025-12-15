@@ -1,0 +1,3 @@
+[submodule "partisannet/erasure/deconfounding-embeddings"]
+	path = partisannet/erasure/deconfounding-embeddings
+	url = https://github.com/y-fn/deconfounding-embeddings.git
