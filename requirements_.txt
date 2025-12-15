@@ -5,3 +5,5 @@ sentence-transformers
 kagglehub
 bertopic
 concept_erasure
+matplotlib
+seaborn
