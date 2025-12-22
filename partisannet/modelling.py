@@ -1,41 +1,64 @@
 import lightning as L
 import torch.nn as nn
 import torch.optim as optim
-import torch
+import torch, math
 from transformers import get_cosine_schedule_with_warmup
 
+def disp_loss(x, tau = 0.5):
+    z = torch.flatten(x, 1)
+    dist = nn.functional.pdist(z, p=2).pow(2) / z.shape[1]
+
+    # Accounts for zero distance to self
+    dist = torch.concat([dist, dist, torch.zeros(z.shape[0]).to(dist.device)]) 
+
+    # Log sum exp trick for numerical stability
+    loss = torch.logsumexp(-dist/tau, dim=0) - math.log(dist.numel())
+    return loss
+
 class PartisanNetModel(L.LightningModule):
-    def __init__(self, model, learning_rate=1e-3):
+    def __init__(
+            self, 
+            model, 
+            learning_rate=1e-3,
+            lmbda=0.5
+        ):
         super(PartisanNetModel, self).__init__()
         self.model = model
         self.learning_rate = learning_rate
         self.criterion = nn.CrossEntropyLoss()
+        self.lmbda = lmbda
 
     def forward(self, x):
-        return self.model(x)
+        logits, embeddings = self.model(x)
+        return {
+            "logits": logits,
+            "embeddings": embeddings
+        }
 
     def training_step(self, batch, batch_idx):
         sentences = batch['text']
         targets = batch['label']
 
-        outputs = self.model(sentences)
-        loss = self.criterion(outputs, targets)
+        out_dict = self.model(sentences)
+        loss = self.criterion(out_dict["logits"], targets)
+        disp = disp_loss(out_dict["embeddings"])
         self.log('train_loss', loss, prog_bar=True)
-        return loss
+        return loss + self.lmbda * disp
 
     def validation_step(self, batch, batch_idx):
         sentences = batch['text']
         targets = batch['label']
-        logits = self.model(sentences)
+        logits = self.model(sentences)[0]
 
         loss = self.criterion(logits, targets)
         accuracy = (logits.argmax(dim=1) == targets).float().mean()
         self.log('val_accuracy', accuracy)
         self.log('val_loss', loss)
         return loss
+    
     def predict_step(self, batch, batch_idx):
         sentences = batch['text'] # Extract just the list of strings
-        return self.model(sentences) # Pass only the strings to the SBERT model
+        return self.model(sentences)[0] # Pass only the strings to the SBERT model
 
     def configure_optimizers(self):
         # 1. Define the Optimizer (AdamW is best for Transformers)

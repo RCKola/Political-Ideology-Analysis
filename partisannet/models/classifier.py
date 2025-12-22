@@ -46,11 +46,11 @@ class SBERTClassifier(nn.Module):
         if return_embeddings:
             return embeddings
         logits = self.classifier(embeddings)
-        return logits
+        return logits, embeddings
     
     @torch.inference_mode()
     def predict(self, sentences):
-        logits = self.forward(sentences)
+        logits = self.forward(sentences)[0]
         probabilities = F.softmax(dim=1)(logits)
         return probabilities
 
