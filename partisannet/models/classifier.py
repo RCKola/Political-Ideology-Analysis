@@ -14,19 +14,10 @@ class SBERTClassifier(nn.Module):
                 # --------------------
 
         self.embed_dim = self.sbert.get_sentence_embedding_dimension()
-        """
-        self.classifier = nn.Sequential(
-            nn.Linear(self.embed_dim, 256),
-            nn.ReLU(),
-            nn.Dropout(dropout_prob),
-            nn.Linear(256, num_classes)
-        )
-        """
         self.classifier = nn.Linear(self.embed_dim, num_classes)
         print("SBERT modules:", (module for module in self.sbert.named_children()))
 
     def forward(self, sentences, return_embeddings=False):
-        # 1. Tokenize the sentences (This creates tensors on the CPU)
         data_dict = self.sbert.tokenize(sentences)
         
         # 2. FIX: Move every tensor in the dictionary to the same device as the model (GPU)

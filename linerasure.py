@@ -2,11 +2,8 @@ import os
 import torch
 from concept_erasure import LeaceEraser
 from partisannet.data.datamodule import get_dataloaders
-from partisannet.models.classifier import SBERTClassifier
-from partisannet.data.datamodule import include_topics, load_datasets
-from partisannet.modelling import PartisanNetModel 
-from partisannet.models.get_embeddings import generate_embeddings, get_finetuned_embeddings
-from datasets import load_from_disk
+from partisannet.data.datamodule import include_topics
+from partisannet.models.get_embeddings import generate_embeddings
 
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
@@ -22,7 +19,6 @@ from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, accuracy_score
 from imblearn.over_sampling import RandomOverSampler
-from partisannet.models.get_embeddings import get_finetuned_embeddings
 from datasets import Dataset
 from sklearn.metrics import adjusted_rand_score
 
@@ -283,13 +279,12 @@ def run_erasure_two_sources(
     plt.savefig('exact_pairs.png')
     plt.close()
 
-def  svm_erasure(
+def svm_erasure(
         embeddings,
         embeddings_erased,
         topic_labels,
         labels,
-
-):
+    ):
     embeddings_train, embeddings_test, labels_train, labels_test = train_test_split(embeddings.numpy(), labels.numpy(), test_size=0.2, random_state=42)
     embeddings_erased_train, embeddings_erased_test, _, _ = train_test_split(embeddings_erased.numpy(), labels.numpy(), test_size=0.2, random_state=42)
 
@@ -318,66 +313,8 @@ def  svm_erasure(
     print(f"Accuracy After Erasure: {accuracy_era:.4f}")
 
 def plot_topic_distribution(topic_model, dataset, topics, partisan_labels):
-        # 1. Convert tensors to numpy (if they aren't already)
-        # We use .cpu() just in case they are on the GPU
-        topics_np = topics.cpu().numpy() if isinstance(topics, torch.Tensor) else topics
-        labels_np = partisan_labels.cpu().numpy() if isinstance(partisan_labels, torch.Tensor) else partisan_labels
-
-        # 2. Create a DataFrame
-        df = pd.DataFrame({
-            'Topic_ID': topics_np,
-            'Ideology': labels_np
-        })
-
-        # 3. Create the Pivot Table
-        # This counts occurrences of each ideology per topic
-        # 0 = Left (usually), 1 = Right (usually)
-        # 1. Create the Pivot Table
-        # This creates columns named 0 and 1 (based on your ideology labels)
-        topic_stats = df.pivot_table(
-            index='Topic_ID', 
-            columns='Ideology', 
-            aggfunc='size', 
-            fill_value=0
-        )
-
-        # 2. Rename columns IMMEDIATELY
-        # Adjust this mapping if 0 is Right and 1 is Left in your data
-        topic_stats.columns = ['Left_Count', 'Right_Count'] 
-
-        # 3. Calculate new columns (Total and Percentages)
-        topic_stats['Total'] = topic_stats['Left_Count'] + topic_stats['Right_Count']
-        topic_stats['%_Left'] = (topic_stats['Left_Count'] / topic_stats['Total'] * 100).round(1)
-        topic_stats['%_Right'] = (topic_stats['Right_Count'] / topic_stats['Total'] * 100).round(1)
-
-        # 4. Get Topic Names and Merge
-        topic_names = topic_model.get_topic_info()[['Topic', 'Name']]
-        topic_stats = topic_stats.merge(topic_names, left_on='Topic_ID', right_on='Topic', how='left')
-
-        # 5. Clean Topic Names
-        topic_stats['Name'] = topic_stats['Name'].apply(lambda x: "_".join(x.split("_")[1:]))
-
-        # 6. NOW you can safely reorder/select columns
-        # Because they all exist now
-        topic_stats = topic_stats[['Topic', 'Name', 'Left_Count', 'Right_Count', '%_Left', '%_Right', 'Total']]
-
-        # 7. Sort and Display
-        topic_stats = topic_stats.sort_values('Total', ascending=False)
-        print(topic_stats)
-
-        # Optional: Save to CSV for your report
-        # topic_stats.to_csv("topic_breakdown.csv")
-        
-
-        # Plot a stacked bar chart
-        topic_stats[['Left_Count', 'Right_Count']].plot(kind='bar', stacked=True, figsize=(12, 6))
-        plt.title("Topic Distribution by Political Leaning")
-        plt.ylabel("Number of Embeddings")
-        plt.xlabel("Topic ID")
-        plt.show()
-        
-
-
+    "Moved to plotting"
+    pass
 
 if __name__ == "__main__":
     #show_topics()
@@ -385,9 +322,7 @@ if __name__ == "__main__":
     single_shot = True
     trained_embeddings = False
 
-
     dataloaders, topic_model = get_dataloaders("mbib", batch_size=32, split=False, num_topics=None, cluster_in_k=40, renew_cache=True)
-    
     
     if not trained_embeddings:
     # Generate Embeddings
@@ -410,12 +345,9 @@ if __name__ == "__main__":
         # Calculate similarity
         score = adjusted_rand_score(old_cpu, new_cpu)
         print(f"Topic Similarity Score (ARI): {score:.4f}")
-       
 
     print(f"Extracted embeddings shape: {embeddings.shape}")
     print(f"Extracted topics: {topics.shape}")
-
-    
 
     # 1. Setup Data
     # Ensure these are PyTorch tensors
@@ -458,14 +390,6 @@ if __name__ == "__main__":
     print(f"Erased embeddings shape: {embeddings_erased.shape}")
 
     plot_topic_distribution(topic_model, dataloaders['train'].dataset, topics, partisan_labels)
-
-    
-
-    # Move tensors to CPU for scikit-learn
-
-
-    
-
 
     svm_erasure(
         embeddings=embeddings, 
