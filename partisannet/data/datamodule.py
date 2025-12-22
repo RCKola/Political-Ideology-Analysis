@@ -73,24 +73,6 @@ def get_datasets(dataset: str, num_topics = None, cluster_in_k = None) -> dict[s
     ds.set_format('torch')
     
     return ds, topic_model
-    """
-    if not split:
-        loader = DataLoader(ds, batch_size=batch_size, shuffle=True)
-        return {"train": loader, "val": loader, "test": loader}, topic_model
-    split_data = ds.train_test_split(test_size=0.1, seed=42)
-    train_val_data = split_data['train'].train_test_split(test_size=0.2, seed=42)
-
-    # TODO: revisit dataset splitting strategy
-    train_loader = DataLoader(train_val_data['train'], batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(train_val_data['test'], batch_size=batch_size, shuffle=False)
-    test_loader = DataLoader(split_data['test'], batch_size=batch_size, shuffle=False)
-    data_dict = {
-        "train": train_loader,
-        "val": val_loader,
-        "test": test_loader
-    }
-    return data_dict, topic_model
-    """
 
 def get_dataloaders(dataset: str, batch_size: int, split = True, num_topics = None, cluster_in_k = None, renew_cache = False) -> dict[str, DataLoader]:
     # Inside your main block
@@ -123,9 +105,9 @@ def get_dataloaders(dataset: str, batch_size: int, split = True, num_topics = No
     split_data = dataset.train_test_split(test_size=0.1, seed=42)
     train_val_data = split_data['train'].train_test_split(test_size=0.2, seed=42)  
 
-    train_loader = DataLoader(train_val_data['train'], batch_size=batch_size, shuffle=True, num_workers= 0)
-    val_loader = DataLoader(train_val_data['test'], batch_size=batch_size, shuffle=False, num_workers= 0)
-    test_loader = DataLoader(split_data['test'], batch_size=batch_size, shuffle=False, num_workers= 0)
+    train_loader = DataLoader(train_val_data['train'], batch_size=batch_size, shuffle=True, num_workers=0)
+    val_loader = DataLoader(train_val_data['test'], batch_size=batch_size, shuffle=False, num_workers=0)
+    test_loader = DataLoader(split_data['test'], batch_size=batch_size, shuffle=False, num_workers=0)
     data_dict = {
         "train": train_loader,
         "val": val_loader,

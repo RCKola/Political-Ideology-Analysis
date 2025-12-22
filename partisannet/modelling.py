@@ -74,7 +74,7 @@ if __name__ == "__main__":
     early_stop_callback = EarlyStopping(
     monitor="val_loss",  # Watch the validation loss
     min_delta=0.001,      # Improvement must be at least this much
-    patience=6,          # Stop if no improvement for 3 epochs
+    patience=4,          # Stop if no improvement for 3 epochs
     verbose=True,
     mode="min"           # "min" because we want loss to go DOWN
     )
@@ -88,9 +88,23 @@ if __name__ == "__main__":
 
     predictions = trainer.predict(model, dataloaders['test'])
     print("Predictions on test set completed.")
-    accuracy = torch.cat([pred.argmax(dim=1) for pred in predictions], dim=0)
-    print(f"Test Accuracy: {accuracy.float().mean().item():.4f}")
-    
+    all_logits = torch.cat(predictions) 
+    predicted_classes = all_logits.argmax(dim=1).cpu()
+
+    # 2. Extract the TRUE labels from the test dataloader (in the same order)
+    true_labels = []
+    for batch in dataloaders['test']:
+        true_labels.append(batch['label'])
+        
+    true_labels = torch.cat(true_labels).cpu()
+
+    # 3. Calculate REAL Accuracy
+    # (Check where Prediction equals Truth)
+    correct = (predicted_classes == true_labels).float()
+    real_accuracy = correct.mean().item()
+
+    print(f"REAL Test Accuracy: {real_accuracy:.4f}")
+        
 
 
 

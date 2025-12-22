@@ -24,6 +24,7 @@ from sklearn.metrics import classification_report, accuracy_score
 from imblearn.over_sampling import RandomOverSampler
 from partisannet.models.get_embeddings import get_finetuned_embeddings
 from datasets import Dataset
+from sklearn.metrics import adjusted_rand_score
 
 
 def is_top_k_match(embeddings_0, embeddings_1, k=3):
@@ -381,11 +382,11 @@ def plot_topic_distribution(topic_model, dataset, topics, partisan_labels):
 if __name__ == "__main__":
     #show_topics()
     #cache_path = "./cached_processed_dataset"
-    single_shot = False
-    trained_embeddings = True
+    single_shot = True
+    trained_embeddings = False
 
 
-    dataloaders, topic_model = get_dataloaders("LibCon", batch_size=32, split=False, num_topics=None, cluster_in_k=40, renew_cache=False)
+    dataloaders, topic_model = get_dataloaders("mbib", batch_size=32, split=False, num_topics=None, cluster_in_k=40, renew_cache=True)
     
     
     if not trained_embeddings:
@@ -402,6 +403,13 @@ if __name__ == "__main__":
         # Extract the topic IDs
         topics_list = ds_with_topics["topic"]
         topics = torch.tensor(topics_list).long().to(embeddings.device)
+
+        old_cpu = old_topics.cpu().numpy() if hasattr(old_topics, 'cpu') else old_topics
+        new_cpu = topics.cpu().numpy() if hasattr(topics, 'cpu') else topics
+
+        # Calculate similarity
+        score = adjusted_rand_score(old_cpu, new_cpu)
+        print(f"Topic Similarity Score (ARI): {score:.4f}")
        
 
     print(f"Extracted embeddings shape: {embeddings.shape}")
@@ -451,16 +459,12 @@ if __name__ == "__main__":
 
     plot_topic_distribution(topic_model, dataloaders['train'].dataset, topics, partisan_labels)
 
-    from sklearn.metrics import adjusted_rand_score
+    
 
     # Move tensors to CPU for scikit-learn
-    old_cpu = old_topics.cpu().numpy() if hasattr(old_topics, 'cpu') else old_topics
-    new_cpu = topics.cpu().numpy() if hasattr(topics, 'cpu') else topics
 
-    # Calculate similarity
-    score = adjusted_rand_score(old_cpu, new_cpu)
 
-    print(f"Topic Similarity Score (ARI): {score:.4f}")
+    
 
 
     svm_erasure(
