@@ -67,8 +67,8 @@ class PartisanNetModel(L.LightningModule):
         }
 
 if __name__ == "__main__":
-    from partisannet.data.datamodule import get_dataloaders
-    from partisannet.models.classifier import SBERTClassifier
+    from data.datamodule import get_dataloaders
+    from models.classifier import SBERTClassifier
     from lightning.pytorch.callbacks import EarlyStopping
 
     early_stop_callback = EarlyStopping(
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     )
 
 
-    dataloaders, topic_model = get_dataloaders("LibCon", batch_size=32, split=True, num_topics=None, cluster_in_k=40, renew_cache=False)
+    dataloaders, topic_model = get_dataloaders("LibCon", batch_size=32, split=True, num_topics=None, cluster_in_k=40, renew_cache=True)
     sbert_model = SBERTClassifier()
     model = PartisanNetModel(sbert_model)
     trainer = L.Trainer(accelerator="gpu", devices=1, max_epochs=50, callbacks=[early_stop_callback])

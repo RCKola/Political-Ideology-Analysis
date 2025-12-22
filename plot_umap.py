@@ -11,6 +11,7 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "."))
 if project_root not in sys.path: sys.path.append(project_root)
 
 from partisannet.data.datamodule import get_dataloaders
+from partisannet.models.get_embeddings import generate_embeddings
 
 def main():
     # --- CONFIG ---
@@ -21,30 +22,16 @@ def main():
     # 1. Load the Original Binary Data
     print("Loading LibCon Test Data...")
     # split=True gives us train/val/test. We use 'test'.
-    dataloaders, _ = get_dataloaders("LibCon", batch_size=32, split=True, renew_cache=False)
-    dataset = dataloaders['test'].dataset
-
-    # 2. Subsample for Speed
-    # UMAP is slow with too many points, so we grab a random chunk
-    if len(dataset) > SAMPLE_SIZE:
-        indices = np.random.choice(len(dataset), SAMPLE_SIZE, replace=False)
-        texts = [dataset[i]['text'] for i in indices]
-        labels = [dataset[i]['label'] for i in indices] # 0 or 1
-    else:
-        texts = dataset['text']
-        labels = dataset['label']
-
-    # 3. Generate Embeddings
-    print(f"Loading SBERT model from {MODEL_PATH}...")
-    model = SentenceTransformer(MODEL_PATH)
+    dataloaders, topic_model = get_dataloaders("LibCon", batch_size=32, split=False, num_topics=None, cluster_in_k=40, renew_cache=False)
     
-    print("Encoding embeddings...")
-    embeddings = model.encode(texts, show_progress_bar=True)
+    
+    
+    embeddings, labels, old_topics = generate_embeddings(dataloaders['train'], path = "data/fine_tuned_sbert")
 
     # 4. Run UMAP Projection
     print("Running UMAP (384d -> 2d)...")
     # n_neighbors=15 and min_dist=0.1 are standard defaults for structure
-    reducer = umap.UMAP(n_neighbors=15, min_dist=0.1, metric='cosine', random_state=42)
+    reducer = umap.UMAP(n_neighbors=15, min_dist=0.1, metric='euclidean', random_state=42)
     embedding_2d = reducer.fit_transform(embeddings)
 
     # 5. Plot
