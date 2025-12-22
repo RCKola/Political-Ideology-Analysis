@@ -77,8 +77,8 @@ class PartisanNetModel(L.LightningModule):
         }
 
 if __name__ == "__main__":
-    from .data.datamodule import get_dataloaders
-    from .models.classifier import SBERTClassifier
+    from data.datamodule import get_dataloaders
+    from models.classifier import SBERTClassifier
     from lightning.pytorch.callbacks import EarlyStopping
 
     early_stop_callback = EarlyStopping(

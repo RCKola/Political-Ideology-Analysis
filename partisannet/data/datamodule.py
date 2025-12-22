@@ -46,6 +46,10 @@ def load_datasets(dataset_name: str) -> Dataset:
         new_features["label"] = ClassLabel(names=["Liberal", "Conservative"]) # 0: Liberal, 1: Conservative
         ds = ds.cast(new_features)
         ds = ds.map(combine_text_batched, batched=True, num_proc=4)
+        num = ds["label"].count(1)
+        indices_to_drop = [i for i, label in enumerate(ds["label"]) if label == 0][num:]
+        indices_to_keep = [i for i in range(len(ds)) if i not in indices_to_drop]
+        ds = ds.select(indices_to_keep)
         ds = ds.remove_columns(["Title", "Text", "Score", "URL","Num of Comments", "Subreddit", "Date Created"])
     else:
         raise ValueError(f"Dataset {dataset_name} not supported.")
@@ -115,9 +119,28 @@ def get_dataloaders(dataset: str, batch_size: int, split = True, num_topics = No
     }
     return data_dict, topic_model
 
+def get_topics(docs: list[str], num_topics: int | None = None, remove_stopwords: bool = False, embeddings=None) -> tuple[BERTopic, list[int], list[float]]:
+    
+    vectorizer = CountVectorizer(stop_words='english' if remove_stopwords else None)
+    topic_model = BERTopic(nr_topics=num_topics, vectorizer_model=vectorizer)
+
+    # 2. Add logic to use the embeddings if they exist
+    if embeddings is not None:
+        # BERTopic requires Numpy arrays, so we convert from PyTorch if needed
+        if hasattr(embeddings, "cpu"):
+            embeddings = embeddings.cpu().numpy()
+        
+        # Pass them into fit_transform
+        topics, probs = topic_model.fit_transform(docs, embeddings=embeddings)
+    else:
+        # Fallback to default (Standard SBERT) if no embeddings provided
+        topics, probs = topic_model.fit_transform(docs)
+
+    return topic_model, topics, probs
+
 def include_topics(dataset: Dataset, num_topics: int | None = None, remove_stopwords: bool = True, cluster_in_k: int | None = None, embeddings = None) -> tuple[Dataset, object]:
     """Adds topic modeling information to the dataset using BERTopic."""
-    from partisannet.models.topics import get_topics
+
 
     docs = [text for text in dataset['text']]
     
@@ -164,8 +187,11 @@ def include_topics(dataset: Dataset, num_topics: int | None = None, remove_stopw
 
     return dataset, topic_model
 
+
+
+
 if __name__ == "__main__":
-    dataloaders = get_dataloaders("LibCon", batch_size=32)
-    for batch in dataloaders['train']:
-        print(batch)
-        break
+    from collections import Counter
+    dataset = load_datasets("LibCon")
+    label_counts = Counter(dataset["label"])
+    print(label_counts)
