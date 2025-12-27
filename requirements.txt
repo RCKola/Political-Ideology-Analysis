@@ -8,6 +8,7 @@ torchaudio==2.9.1+cu128
 datasets>=3.0.0
 lightning>=2.4.0
 kagglehub
+wandb
 
 # models
 sentence-transformers

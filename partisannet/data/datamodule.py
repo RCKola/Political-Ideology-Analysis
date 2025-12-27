@@ -9,6 +9,7 @@ from datasets import load_from_disk
 from bertopic import BERTopic
 from sklearn.feature_extraction.text import CountVectorizer
 
+
 def combine_text_batched(dataset: Dataset) -> dict[str, list[str]]:
     """Combines 'Title' and 'Text' columns into a single 'text' column.
     Args:
@@ -141,7 +142,6 @@ def get_topics(docs: list[str], num_topics: int | None = None, remove_stopwords:
 def include_topics(dataset: Dataset, num_topics: int | None = None, remove_stopwords: bool = True, cluster_in_k: int | None = None, embeddings = None) -> tuple[Dataset, object]:
     """Adds topic modeling information to the dataset using BERTopic."""
 
-
     docs = [text for text in dataset['text']]
     
     # 1. Initial Fit (~200 topics)
@@ -186,8 +186,6 @@ def include_topics(dataset: Dataset, num_topics: int | None = None, remove_stopw
     dataset = dataset.add_column('topic_prob', probs)
 
     return dataset, topic_model
-
-
 
 
 if __name__ == "__main__":

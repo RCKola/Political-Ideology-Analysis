@@ -15,7 +15,7 @@ class PartisanNetModel(L.LightningModule):
     def __init__(
             self, 
             model, 
-            learning_rate=1e-3,
+            learning_rate=1e-4,
             lmbda=0.5
         ):
         super(PartisanNetModel, self).__init__()
@@ -23,6 +23,7 @@ class PartisanNetModel(L.LightningModule):
         self.learning_rate = learning_rate
         self.criterion = nn.CrossEntropyLoss()
         self.lmbda = lmbda
+        self.save_hyperparameters(ignore=['model'])
 
     def forward(self, x):
         logits, embeddings = self.model(x)
@@ -35,26 +36,27 @@ class PartisanNetModel(L.LightningModule):
         sentences = batch['text']
         targets = batch['label']
 
-        out_dict = self.model(sentences)
+        out_dict = self.forward(sentences)
         loss = self.criterion(out_dict["logits"], targets)
         disp = disp_loss(out_dict["embeddings"])
         self.log('train_loss', loss, prog_bar=True)
+        self.log('disp_loss', disp, prog_bar=True)
         return loss + self.lmbda * disp
 
     def validation_step(self, batch, batch_idx):
         sentences = batch['text']
         targets = batch['label']
-        logits = self.model(sentences)[0]
+        logits = self.forward(sentences)["logits"]
 
         loss = self.criterion(logits, targets)
         accuracy = (logits.argmax(dim=1) == targets).float().mean()
-        self.log('val_accuracy', accuracy)
-        self.log('val_loss', loss)
+        self.log('val_accuracy', accuracy, prog_bar=True, on_epoch=True)
+        self.log('val_loss', loss, prog_bar=True, on_epoch=True)
         return loss
     
     def predict_step(self, batch, batch_idx):
         sentences = batch['text']
-        return self.model(sentences)[0]
+        return self.forward(sentences)["logits"]
 
     def configure_optimizers(self):
         optimizer = optim.AdamW(self.parameters(), lr=2e-5, weight_decay=0.01)
@@ -79,20 +81,17 @@ class PartisanNetModel(L.LightningModule):
 if __name__ == "__main__":
     from data.datamodule import get_dataloaders
     from models.classifier import SBERTClassifier
-    from lightning.pytorch.callbacks import EarlyStopping
+    from utils.training import setup_logger
 
-    early_stop_callback = EarlyStopping(
-        monitor="val_loss",  
-        min_delta=0.001,
-        patience=4,
-        verbose=True,
-        mode="min"
-    )
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
+    torch.backends.cudnn.benchmark = True
 
     dataloaders, topic_model = get_dataloaders("LibCon", batch_size=32, split=True, num_topics=None, cluster_in_k=40, renew_cache=False)
     sbert_model = SBERTClassifier()
     model = PartisanNetModel(sbert_model)
-    trainer = L.Trainer(accelerator="gpu", devices=1, max_epochs=50, callbacks=[early_stop_callback])
+    logger = setup_logger()
+    trainer = L.Trainer(accelerator="gpu", devices=1, max_epochs=50, logger=logger)
     trainer.fit(model, dataloaders['train'], dataloaders['val'])
 
     predictions = trainer.predict(model, dataloaders['test'])

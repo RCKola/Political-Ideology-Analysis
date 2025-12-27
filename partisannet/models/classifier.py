@@ -9,33 +9,28 @@ class SBERTClassifier(nn.Module):
         super(SBERTClassifier, self).__init__()
         self.sbert = SentenceTransformer(model_name)
         if freeze_backbone:
-                    for param in self.sbert.parameters():
-                        param.requires_grad = False
-                # --------------------
+            for param in self.sbert.parameters():
+                param.requires_grad = False
 
         self.embed_dim = self.sbert.get_sentence_embedding_dimension()
         self.classifier = nn.Linear(self.embed_dim, num_classes)
         print("SBERT modules:", (module for module in self.sbert.named_children()))
 
-    def forward(self, sentences, return_embeddings=False):
+    @property
+    def device(self):
+        return next(self.parameters()).device
+
+    def forward(self, sentences):
         data_dict = self.sbert.tokenize(sentences)
-        
-        # 2. FIX: Move every tensor in the dictionary to the same device as the model (GPU)
-        device = next(self.parameters()).device # specific trick to find where the model is
+        device = self.device
         
         for key in data_dict:
             if isinstance(data_dict[key], torch.Tensor):
                 data_dict[key] = data_dict[key].to(device)
         
-        # 3. Now feed the GPU tensors into the GPU model
         output_dict = self.sbert(data_dict)
-        
-        # The rest of your code remains the same...
         embeddings = output_dict['sentence_embedding']
 
-
-        if return_embeddings:
-            return embeddings
         logits = self.classifier(embeddings)
         return logits, embeddings
     
