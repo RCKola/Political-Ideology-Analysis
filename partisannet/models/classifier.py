@@ -1,20 +1,36 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, models
+from peft import LoraConfig, TaskType
 
 
 class SBERTClassifier(nn.Module):
-    def __init__(self, model_name='all-MiniLM-L6-v2', num_classes=2, freeze_backbone=False, dropout_prob=0.3):
+    def __init__(self, model_name='sentence-transformers/all-MiniLM-L6-v2', num_classes=2, freeze_backbone=False, lora_r=64):
         super(SBERTClassifier, self).__init__()
         self.sbert = SentenceTransformer(model_name)
+        
+        # transformer = models.Transformer(model_name)
+        # pooling = models.Pooling(transformer.get_word_embedding_dimension(), pooling_mode="max")
+        # self.sbert = SentenceTransformer(modules=[transformer, pooling])
+
         if freeze_backbone:
             for param in self.sbert.parameters():
                 param.requires_grad = False
 
         self.embed_dim = self.sbert.get_sentence_embedding_dimension()
         self.classifier = nn.Linear(self.embed_dim, num_classes)
-        print("SBERT modules:", (module for module in self.sbert.named_children()))
+        print("SBERT modules:", [module for module in self.sbert.named_children()])
+        if lora_r is not None and lora_r > 0:
+            peft_config = LoraConfig(
+                task_type=TaskType.FEATURE_EXTRACTION,
+                inference_mode=False,
+                target_modules=["query", "value"],
+                r=lora_r,
+                lora_alpha=2*lora_r,
+                lora_dropout=0.1
+            )
+            self.sbert.add_adapter(peft_config)
 
     @property
     def device(self):

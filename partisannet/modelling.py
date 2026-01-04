@@ -1,8 +1,10 @@
-import lightning as L
+import lightning.pytorch as L
 import torch.nn as nn
 import torch.optim as optim
-import torch, math
+import torch, math, logging
 from transformers import get_cosine_schedule_with_warmup
+
+logging.basicConfig(level=logging.INFO)
 
 def disp_loss(x, tau = 0.5):
     z = torch.flatten(x, 1)
@@ -15,12 +17,14 @@ class PartisanNetModel(L.LightningModule):
     def __init__(
             self, 
             model, 
-            learning_rate=1e-4,
+            lr=1e-4,
+            wd=1e-2,
             lmbda=0.5
         ):
         super(PartisanNetModel, self).__init__()
         self.model = model
-        self.learning_rate = learning_rate
+        self.lr = lr
+        self.wd = wd
         self.criterion = nn.CrossEntropyLoss()
         self.lmbda = lmbda
         self.save_hyperparameters(ignore=['model'])
@@ -54,15 +58,42 @@ class PartisanNetModel(L.LightningModule):
         self.log('val_loss', loss, prog_bar=True, on_epoch=True)
         return loss
     
+    def test_step(self, batch, batch_idx):
+        sentences = batch['text']
+        targets = batch['label']
+        logits = self.forward(sentences)["logits"]
+
+        loss = self.criterion(logits, targets)
+        acc = (logits.argmax(dim=1) == targets).float().mean()
+        
+        self.log("test_acc", acc, prog_bar=True)
+        self.log("test_loss", loss, prog_bar=True)
+        return loss
+    
     def predict_step(self, batch, batch_idx):
         sentences = batch['text']
-        return self.forward(sentences)["logits"]
+        predictions = self.forward(sentences)["logits"]
+        all_logits = torch.cat(predictions) 
+        return all_logits.argmax(dim=1).cpu()
 
     def configure_optimizers(self):
-        optimizer = optim.AdamW(self.parameters(), lr=2e-5, weight_decay=0.01)
+        sbert_params = []
+        clf_params = []
+        for name, param in self.named_parameters():
+            if not param.requires_grad:
+                continue
+            if "sbert" in name:
+                sbert_params.append(param)
+            else:
+                clf_params.append(param)
+        param_groups = [
+            {"params": sbert_params, "lr": self.lr},
+            {"params": clf_params, "lr": self.lr * 10},
+        ]
+        optimizer = optim.AdamW(param_groups, weight_decay=self.wd)
+
         total_steps = self.trainer.estimated_stepping_batches
-        warmup_steps = int(0.1 * total_steps) 
-        
+        warmup_steps = int(0.1 * total_steps)
         scheduler = get_cosine_schedule_with_warmup(
             optimizer,
             num_warmup_steps=warmup_steps,
@@ -78,41 +109,44 @@ class PartisanNetModel(L.LightningModule):
             }
         }
 
+def save_model(trainer: L.Trainer, module: L.LightningModule, path: str = "data/fine_tuned_sbert"):
+    logging.info("Loading best model weights...")
+    best_path = trainer.checkpoint_callback.best_model_path
+    best_model = PartisanNetModel.load_from_checkpoint(best_path, model=module.model)
+
+    logging.info(f"Saving Fine-Tuned SBERT to path {path}")
+    finetuned_sbert = best_model.model.sbert 
+    finetuned_sbert.save_pretrained(path)
+
 if __name__ == "__main__":
     from data.datamodule import get_dataloaders
     from models.classifier import SBERTClassifier
-    from utils.training import setup_logger
+    from utils.training import setup_logger, setup_callbacks
 
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
     torch.backends.cudnn.benchmark = True
 
-    dataloaders, topic_model = get_dataloaders("LibCon", batch_size=32, split=True, num_topics=None, cluster_in_k=40, renew_cache=False)
-    sbert_model = SBERTClassifier()
-    model = PartisanNetModel(sbert_model)
-    logger = setup_logger()
-    trainer = L.Trainer(accelerator="gpu", devices=1, max_epochs=50, logger=logger)
+    log_dir = "data/outputs"
+    L.seed_everything(42, workers=True)
+
+    dataloaders, topic_model = get_dataloaders("LibCon", batch_size=128, split=True, num_topics=None, cluster_in_k=40, renew_cache=False)
+    sbert_model = SBERTClassifier(lora_r=32)
+    model = PartisanNetModel(sbert_model, lr=5e-5)
+    logger = setup_logger(log_dir)
+    logger.watch(model, log="all")
+
+    trainer = L.Trainer(
+        accelerator="gpu", 
+        devices=1, 
+        max_epochs=50, 
+        logger=logger,
+        # callbacks=setup_callbacks(log_dir),
+        gradient_clip_val=1.0,
+        gradient_clip_algorithm="norm",
+    )
+
     trainer.fit(model, dataloaders['train'], dataloaders['val'])
+    trainer.test(model, dataloaders['test'], ckpt_path="best")
 
-    predictions = trainer.predict(model, dataloaders['test'])
-    print("Predictions on test set completed.")
-    all_logits = torch.cat(predictions) 
-    predicted_classes = all_logits.argmax(dim=1).cpu()
-
-    true_labels = []
-    for batch in dataloaders['test']:
-        true_labels.append(batch['label'])
-    true_labels = torch.cat(true_labels).cpu()
-
-    correct = (predicted_classes == true_labels).float()
-    real_accuracy = correct.mean().item()
-    print(f"Test Accuracy: {real_accuracy:.4f}")
-        
-    print("Loading best model weights...")
-    best_path = trainer.checkpoint_callback.best_model_path
-    best_lightning_model = PartisanNetModel.load_from_checkpoint(best_path, model=sbert_model)
-
-    print("Saving Fine-Tuned SBERT to disk...")
-    finetuned_sbert = best_lightning_model.model.sbert 
-    finetuned_sbert.save("data/fine_tuned_sbert")
-
+    save_model(trainer, model)

@@ -11,7 +11,8 @@ kagglehub
 wandb
 
 # models
-sentence-transformers
+sentence-transformers>=3.0.0
+peft
 bertopic
 concept_erasure
 

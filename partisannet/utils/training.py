@@ -1,15 +1,22 @@
-from lightning.pytorch.callbacks import EarlyStopping
+from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from lightning.pytorch.loggers import WandbLogger
 
-def setup_callbacks():
+def setup_callbacks(log_dir: str) -> list:
     early_stop_cb = EarlyStopping(
         monitor="val_loss",  
         min_delta=0.001,
         patience=4,
-        verbose=True,
+        verbose=False,
         mode="min"
     )
-    return [early_stop_cb]
+    checkpoint_cb = ModelCheckpoint(
+        dirpath=f"{log_dir}/checkpoints",
+        monitor="val_loss",
+        mode="min",
+        save_top_k=1,
+        filename="best-sbert-{val_acc:.2f}"
+    )
+    return [early_stop_cb, checkpoint_cb]
 
 # def setup_loggers(cfg: DictConfig) -> list[Logger]:
 #     """Initialize and setup loggers."""
@@ -19,14 +26,12 @@ def setup_callbacks():
 #     ]
 #     return loggers
 
-def setup_logger(kind="wandb"):
+def setup_logger(log_dir: str, kind="wandb"):
     if kind == "wandb":
         logger = WandbLogger(
             project="PartisanNet",
-            name="ideology-classification",
             log_model="all",
-            save_dir="data",
-            resume="auto"
+            save_dir=f"{log_dir}"
         )
     else:
         raise ValueError(f"Logger kind '{kind}' not supported.")
