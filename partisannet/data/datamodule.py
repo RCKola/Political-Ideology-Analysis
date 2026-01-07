@@ -8,6 +8,7 @@ import os
 from datasets import load_from_disk
 from bertopic import BERTopic
 from sklearn.feature_extraction.text import CountVectorizer
+from pathlib import Path
 
 
 def combine_text_batched(dataset: Dataset) -> dict[str, list[str]]:
@@ -51,7 +52,13 @@ def load_datasets(dataset_name: str) -> Dataset:
         indices_to_drop = [i for i, label in enumerate(ds["label"]) if label == 0][num:]
         indices_to_keep = [i for i in range(len(ds)) if i not in indices_to_drop]
         ds = ds.select(indices_to_keep)
-        ds = ds.remove_columns(["Title", "Text", "Score", "URL","Num of Comments", "Subreddit", "Date Created"])
+        ds = ds.select_columns(["self_text", "subreddit"])
+    elif dataset_name == "DemRep":
+        script_dir = Path(__file__).resolve().parent
+        project_root = script_dir.parent.parent
+        csv_path = project_root / "data" / "Training_data" / "training_data.csv"
+        ds = load_dataset("csv", data_files=str(csv_path), split="train")
+        ds = ds.rename_column("full_text", "text")
     else:
         raise ValueError(f"Dataset {dataset_name} not supported.")
     return ds
@@ -65,6 +72,7 @@ def get_datasets(dataset: str, num_topics = None, cluster_in_k = None) -> dict[s
         dict[str, DataLoader]: A dictionary containing 'train', 'val', and 'test' dataloaders.
     """
     dst = load_datasets(dataset)
+    print(dst)
     ds, topic_model = include_topics(dst, remove_stopwords=True, num_topics = num_topics, cluster_in_k= cluster_in_k)
     # Initialize tokenizer
     model_name='all-MiniLM-L6-v2'
@@ -96,8 +104,9 @@ def get_dataloaders(dataset: str, batch_size: int, split = True, num_topics = No
         topic_model = BERTopic.load(topic_model_cache_path)
     else:
         print("Cache not found. Processing data...")
-        # --- Your Expensive Logic Here ---
-        dataset, topic_model = get_datasets("LibCon", num_topics=num_topics, cluster_in_k=cluster_in_k)
+        
+
+        dataset, topic_model = get_datasets(dataset, num_topics=num_topics, cluster_in_k=cluster_in_k)
         
         # Generate Embeddings
         dataset.save_to_disk(dataset_cache_path)
@@ -189,7 +198,8 @@ def include_topics(dataset: Dataset, num_topics: int | None = None, remove_stopw
 
 
 if __name__ == "__main__":
-    from collections import Counter
-    dataset = load_datasets("LibCon")
-    label_counts = Counter(dataset["label"])
-    print(label_counts)
+    dataloaders, topic_model = get_dataloaders("DemRep", batch_size=128, split=True, num_topics=None, cluster_in_k=40, renew_cache=True)
+
+
+
+    

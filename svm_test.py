@@ -106,7 +106,7 @@ if __name__ == "__main__":
     dataloaders, topic_model = get_dataloaders("LibCon", batch_size=32, split=False, num_topics=None, cluster_in_k=40, renew_cache=False)
     
     
-    
+
     embeddings, partisan_labels, old_topics = generate_embeddings(dataloaders['train'], path = "data/fine_tuned_sbert")
 
     svm_test(
