@@ -213,4 +213,4 @@ __marimo__/
 *.pt
 
 data/cached_data/*
-data/fine_tuned_sbert/*
+data/outputs/*

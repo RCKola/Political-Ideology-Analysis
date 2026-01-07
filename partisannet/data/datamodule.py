@@ -88,7 +88,6 @@ def get_datasets(dataset: str, num_topics = None, cluster_in_k = None) -> dict[s
     return ds, topic_model
 
 def get_dataloaders(dataset: str, batch_size: int, split = True, num_topics = None, cluster_in_k = None, renew_cache = False) -> dict[str, DataLoader]:
-    # Inside your main block
     cache_dir = os.path.join("data", "cached_data")
     
     dataset_cache_path = os.path.join(cache_dir, "cached_dataset_hf")
@@ -97,18 +96,15 @@ def get_dataloaders(dataset: str, batch_size: int, split = True, num_topics = No
     print(f"Dataset exists: {os.path.exists(dataset_cache_path)}")
     print(f"Topic Model exists: {os.path.exists(topic_model_cache_path)}")
     print(f"Renew Cache is: {renew_cache}")
-    # 2. Check if cache exists
+
     if os.path.exists(dataset_cache_path) and os.path.exists(topic_model_cache_path) and not renew_cache:
         print("Loading dataset from disk...")
         dataset = load_from_disk(dataset_cache_path)
         topic_model = BERTopic.load(topic_model_cache_path)
     else:
         print("Cache not found. Processing data...")
-        
-
         dataset, topic_model = get_datasets(dataset, num_topics=num_topics, cluster_in_k=cluster_in_k)
-        
-        # Generate Embeddings
+
         dataset.save_to_disk(dataset_cache_path)
         print("Saving topic model...")
         topic_model.save(topic_model_cache_path, serialization="safetensors", save_embedding_model=True)
@@ -130,20 +126,15 @@ def get_dataloaders(dataset: str, batch_size: int, split = True, num_topics = No
     return data_dict, topic_model
 
 def get_topics(docs: list[str], num_topics: int | None = None, remove_stopwords: bool = False, embeddings=None) -> tuple[BERTopic, list[int], list[float]]:
-    
     vectorizer = CountVectorizer(stop_words='english' if remove_stopwords else None)
     topic_model = BERTopic(nr_topics=num_topics, vectorizer_model=vectorizer)
 
-    # 2. Add logic to use the embeddings if they exist
     if embeddings is not None:
-        # BERTopic requires Numpy arrays, so we convert from PyTorch if needed
         if hasattr(embeddings, "cpu"):
             embeddings = embeddings.cpu().numpy()
         
-        # Pass them into fit_transform
         topics, probs = topic_model.fit_transform(docs, embeddings=embeddings)
     else:
-        # Fallback to default (Standard SBERT) if no embeddings provided
         topics, probs = topic_model.fit_transform(docs)
 
     return topic_model, topics, probs

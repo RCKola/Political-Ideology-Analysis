@@ -130,7 +130,7 @@ if __name__ == "__main__":
     log_dir = "data/outputs"
     L.seed_everything(42, workers=True)
 
-    dataloaders, topic_model = get_dataloaders("LibCon", batch_size=128, split=True, num_topics=None, cluster_in_k=40, renew_cache=False)
+    dataloaders, topic_model = get_dataloaders("DemRep", batch_size=128, split=True, num_topics=None, cluster_in_k=40, renew_cache=True)
     sbert_model = SBERTClassifier(lora_r=32)
     model = PartisanNetModel(sbert_model, lr=5e-5)
     logger = setup_logger(log_dir)
