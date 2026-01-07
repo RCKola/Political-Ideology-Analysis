@@ -212,4 +212,5 @@ __marimo__/
 *.png
 *.pt
 
-data/*
+data/cached_data/*
+data/fine_tuned_sbert/*
