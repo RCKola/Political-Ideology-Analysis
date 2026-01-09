@@ -59,6 +59,12 @@ def load_datasets(dataset_name: str) -> Dataset:
         csv_path = project_root / "data" / "Training_data" / "training_data.csv"
         ds = load_dataset("csv", data_files=str(csv_path), split="train")
         ds = ds.rename_column("full_text", "text")
+    elif dataset_name == "testdata":
+        script_dir = Path(__file__).resolve().parent
+        project_root = script_dir.parent.parent
+        csv_path = project_root / "data" / "Training_data" / "test_data.csv"
+        ds = load_dataset("csv", data_files=str(csv_path), split="train")
+        
     else:
         raise ValueError(f"Dataset {dataset_name} not supported.")
     return ds
@@ -89,8 +95,8 @@ def get_datasets(dataset: str, num_topics = None, cluster_in_k = None) -> dict[s
 
 def get_dataloaders(dataset: str, batch_size: int, split = True, num_topics = None, cluster_in_k = None, renew_cache = False) -> dict[str, DataLoader]:
     cache_dir = os.path.join("data", "cached_data")
-    
-    dataset_cache_path = os.path.join(cache_dir, "cached_dataset_hf")
+
+    dataset_cache_path = os.path.join(cache_dir, dataset)
     topic_model_cache_path = os.path.join(cache_dir, "cached_topic_model")
 
     print(f"Dataset exists: {os.path.exists(dataset_cache_path)}")

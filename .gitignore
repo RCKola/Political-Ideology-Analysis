@@ -209,8 +209,10 @@ __marimo__/
 # Custom
 /lightning_logs/*
 
-*.png
+# *.png
 *.pt
 
 data/cached_data/*
 data/outputs/*
+data/fine_tuned_sbert_old/*
+

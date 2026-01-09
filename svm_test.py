@@ -71,6 +71,7 @@ def  svm_test(
         labels_test,
         embeddings_test
     )
+    """
     print("Balanced Sample with ROS")
    
 
@@ -96,6 +97,7 @@ def  svm_test(
         labels_test,
         embeddings_test
     )
+    """
 
 
 if __name__ == "__main__":
@@ -103,7 +105,7 @@ if __name__ == "__main__":
     #cache_path = "./cached_processed_dataset"
 
 
-    dataloaders, topic_model = get_dataloaders("LibCon", batch_size=32, split=False, num_topics=None, cluster_in_k=40, renew_cache=False)
+    dataloaders, topic_model = get_dataloaders("testdata", batch_size=32, split=False, num_topics=None, cluster_in_k=40, renew_cache=False)
     
     
 

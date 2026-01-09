@@ -24,7 +24,7 @@ def main():
 
     # 1. Load Data
     print("Loading Data...")
-    dataloaders, topic_model = get_dataloaders("LibCon", batch_size=32, split=False, num_topics=None, cluster_in_k=40, renew_cache=False)
+    dataloaders, topic_model = get_dataloaders("DemRep", batch_size=32, split=False, num_topics=None, cluster_in_k=40, renew_cache=False)
     
     
     

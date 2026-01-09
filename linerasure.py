@@ -1,9 +1,9 @@
-import os
+
 import torch
 from concept_erasure import LeaceEraser
 from partisannet.data.datamodule import get_dataloaders
-from partisannet.data.datamodule import include_topics
 from partisannet.models.get_embeddings import generate_embeddings
+from partisannet.data.datamodule import include_topics
 
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
@@ -320,9 +320,9 @@ if __name__ == "__main__":
     #show_topics()
     #cache_path = "./cached_processed_dataset"
     single_shot = True
-    trained_embeddings = False
+    trained_embeddings = True
 
-    dataloaders, topic_model = get_dataloaders("mbib", batch_size=32, split=False, num_topics=None, cluster_in_k=40, renew_cache=True)
+    dataloaders, topic_model = get_dataloaders("testdata", batch_size=32, split=False, num_topics=None, cluster_in_k=40, renew_cache=False)
     
     if not trained_embeddings:
     # Generate Embeddings

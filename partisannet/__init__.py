@@ -1,4 +1,3 @@
-from .models.topics import get_topics
 from .data.datamodule import get_dataloaders
 
 __all__ = [

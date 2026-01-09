@@ -16,13 +16,13 @@ from partisannet.models.get_embeddings import generate_embeddings
 def main():
     # --- CONFIG ---
     MODEL_PATH = "data/fine_tuned_sbert"  # Your saved SBERT folder
-    SAMPLE_SIZE = 2000                    # Number of points to plot
+    SAMPLE_SIZE = 10000                    # Number of points to plot
     # --------------
 
     # 1. Load the Original Binary Data
     print("Loading LibCon Test Data...")
     # split=True gives us train/val/test. We use 'test'.
-    dataloaders, topic_model = get_dataloaders("LibCon", batch_size=32, split=False, num_topics=None, cluster_in_k=40, renew_cache=False)
+    dataloaders, topic_model = get_dataloaders("DemRep", batch_size=32, split=False, num_topics=None, cluster_in_k=40, renew_cache=False)
     
     
     
