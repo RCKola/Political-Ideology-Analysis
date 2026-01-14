@@ -2,9 +2,8 @@
 import torch
 from concept_erasure import LeaceEraser
 from partisannet.data.datamodule import get_dataloaders
+from partisannet.data.topicmodule import load_topic_model, predict_topics
 from partisannet.models.get_embeddings import generate_embeddings
-from partisannet.data.datamodule import include_topics
-
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
@@ -12,15 +11,15 @@ import seaborn as sns
 import numpy as np
 from collections import Counter
 from sklearn.metrics.pairwise import cosine_similarity
-
+import umap
 import matplotlib.pyplot as plt
-import pandas as pd
 from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, accuracy_score
 from imblearn.over_sampling import RandomOverSampler
 from datasets import Dataset
 from sklearn.metrics import adjusted_rand_score
+
 
 
 def is_top_k_match(embeddings_0, embeddings_1, k=3):
@@ -279,42 +278,67 @@ def run_erasure_two_sources(
     plt.savefig('exact_pairs.png')
     plt.close()
 
-def svm_erasure(
-        embeddings,
-        embeddings_erased,
-        topic_labels,
-        labels,
-    ):
-    embeddings_train, embeddings_test, labels_train, labels_test = train_test_split(embeddings.numpy(), labels.numpy(), test_size=0.2, random_state=42)
-    embeddings_erased_train, embeddings_erased_test, _, _ = train_test_split(embeddings_erased.numpy(), labels.numpy(), test_size=0.2, random_state=42)
-
-    ros = RandomOverSampler(random_state=42)
-    embeddings_resampled, labels_resampled = ros.fit_resample(embeddings_train, labels_train)
-    embeddings_erased_resampled, labels_erased_resampled = ros.fit_resample(embeddings_erased_train, labels_train)
-
-    clf_tot = SVC(kernel='linear', random_state=42, C=2.0, class_weight='balanced')
-    clf_tot.fit(embeddings_resampled, labels_resampled)
+def svm_report(
+        embeddings_train,
+        labels_train,
+        labels_test,
+        embeddings_test,
+        clf_tot = SVC(kernel='linear', random_state=42)
+):
+    clf_tot.fit(embeddings_train, labels_train)
     predictions_tot = clf_tot.predict(embeddings_test)
 
-    print("Classification Report Before Erasure:")
+    print("Classification Report")
     print(classification_report(labels_test, predictions_tot))
 
     accuracy_tot = accuracy_score(labels_test, predictions_tot)
-    print(f"Accuracy Before Erasure: {accuracy_tot:.4f}")
+    print(f"Accuracy: {accuracy_tot:.4f}")
 
-    clf_era = SVC(kernel='linear', random_state=42, C=2.0, class_weight='balanced')
-    clf_era.fit(embeddings_erased_resampled, labels_erased_resampled) 
+def  svm_test(
+        embeddings,
+        labels
+):
+    
+    print("Whole Sample")
+    embeddings_train, embeddings_test, labels_train, labels_test = train_test_split(embeddings, labels, test_size=0.2, random_state=42)
+    
+    svm_report(
+        embeddings_train,
+        labels_train,
+        labels_test,
+        embeddings_test
+    )
 
-    predictions_era = clf_era.predict(embeddings_erased_test)
-    print("Classification Report After Erasure:")
-    print(classification_report(labels_test, predictions_era))
+def umap_plot(embeddings_erased, topic_labels, title=""):
+    
+    # Assume 'embeddings_erased' is your (N, 768) numpy array after erasure
 
-    accuracy_era = accuracy_score(labels_test, predictions_era)
-    print(f"Accuracy After Erasure: {accuracy_era:.4f}")
+    # 1. FIND TOPICS (Clustering)
+    # We guess there might be ~10 main topics. You can also use HDBScan for auto-detection
+    # 1. Initialize
+    # 2. REDUCE DIMENSIONS (UMAP)
+    reducer = umap.UMAP(
+        n_neighbors=15,  # 15 is standard; larger (e.g. 50) preserves more global structure
+        min_dist=0.1,    # Controls how tightly points are packed
+        n_components=2,  # 2D for plotting
+        random_state=42
+    )
+    umap_coords = reducer.fit_transform(embeddings_erased)
 
-def plot_topic_distribution(topic_model, dataset, topics, partisan_labels):
-    "Moved to plotting"
-    pass
+    # 3. PLOT
+    plt.figure(figsize=(12, 8))
+    scatter = plt.scatter(
+        umap_coords[:, 0], 
+        umap_coords[:, 1], 
+        c=topic_labels, 
+        cmap='tab20',    # Distinct colors
+        s=1,             # Small dot size
+        alpha=0.6        # Transparency helps see density
+    )
+
+    plt.title(title)
+    plt.colorbar(scatter, label="Topic Cluster ID")
+    plt.show()
 
 if __name__ == "__main__":
     #show_topics()
@@ -322,29 +346,21 @@ if __name__ == "__main__":
     single_shot = True
     trained_embeddings = True
 
-    dataloaders, topic_model = get_dataloaders("testdata", batch_size=32, split=False, num_topics=None, cluster_in_k=40, renew_cache=False)
+    topic_model = load_topic_model("DemRep", embedding_model="data/fine_tuned_sbert", renew_cache=False, num_topics=None, cluster_in_k=20)
+    dataloaders = get_dataloaders("testdata", batch_size=32, split=False, renew_cache=False)
+    embeddings, partisan_labels = generate_embeddings(dataloaders['train'], path = "data/fine_tuned_sbert")
+    temp_ds = Dataset.from_dict({'text': dataloaders['train'].dataset['text']})
+    ds = predict_topics(temp_ds, topic_model)
+
     
-    if not trained_embeddings:
-    # Generate Embeddings
-        embeddings, partisan_labels, topics = generate_embeddings(dataloaders['train'])
-    else:
-        print("Loading pre-computed embeddings from disk...")
-        embeddings, partisan_labels, old_topics = generate_embeddings(dataloaders['train'], path = "data/fine_tuned_sbert")
+    topics = torch.tensor(ds['topic']).long().to(embeddings.device)
 
-        print("Including topics...")
-        temp_ds = Dataset.from_dict({'text': dataloaders['train'].dataset['text']})
-        ds_with_topics, topic_model = include_topics(temp_ds, num_topics=None, cluster_in_k=40, embeddings=embeddings.cpu().numpy())
+    #old_cpu = old_topics.cpu().numpy() if hasattr(old_topics, 'cpu') else old_topics
+    new_cpu = topics.cpu().numpy() if hasattr(topics, 'cpu') else topics
 
-        # Extract the topic IDs
-        topics_list = ds_with_topics["topic"]
-        topics = torch.tensor(topics_list).long().to(embeddings.device)
-
-        old_cpu = old_topics.cpu().numpy() if hasattr(old_topics, 'cpu') else old_topics
-        new_cpu = topics.cpu().numpy() if hasattr(topics, 'cpu') else topics
-
-        # Calculate similarity
-        score = adjusted_rand_score(old_cpu, new_cpu)
-        print(f"Topic Similarity Score (ARI): {score:.4f}")
+    # Calculate similarity
+    """score = adjusted_rand_score(old_cpu, new_cpu)
+    print(f"Topic Similarity Score (ARI): {score:.4f}") """
 
     print(f"Extracted embeddings shape: {embeddings.shape}")
     print(f"Extracted topics: {topics.shape}")
@@ -383,33 +399,34 @@ if __name__ == "__main__":
     else:
         # Single-shot erasure for all topics at once
         print(f"Starting single-shot erasure for {len(unique_topics)} topics...")
-        eraser = LeaceEraser.fit(embeddings, topics)
+        eraser = LeaceEraser.fit(embeddings, partisan_labels)
         embeddings_erased = eraser(embeddings)
         
     print(topic_model.get_topic(0)[:3])
     print(f"Erased embeddings shape: {embeddings_erased.shape}")
 
-    plot_topic_distribution(topic_model, dataloaders['train'].dataset, topics, partisan_labels)
+    umap_plot(embeddings, partisan_labels, title="UMAP of Original Embeddings (Colored by Partisan Labels)")
+    umap_plot(embeddings_erased, partisan_labels, title="UMAP of Embeddings After Erasure (Colored by Partisan Labels)")
+    umap_plot(embeddings_erased, topics, title="UMAP of Embeddings After Erasure (Colored by Topic Labels)")
 
-    svm_erasure(
-        embeddings=embeddings, 
-        embeddings_erased=embeddings_erased,
-        topic_labels=unique_topics,
-        labels=partisan_labels
+
+    
+    svm_test(
+        embeddings,
+        partisan_labels
+    )
+
+    svm_test(
+        embeddings_erased,
+        partisan_labels
     )
     run_erasure_two_sources(
         embeddings=embeddings,
         embeddings_erased=embeddings_erased,
         topic_labels=partisan_labels,
-        k=10,
-        top_k_retrieval=20,
+        k=20,
+        top_k_retrieval=30,
         max_n_clusters=32,
         source_1 = "left",
         source_2 = "right")
-    
-"""     print(dataset.column_names)
-    print("Topic Info:", topic_model.get_topic_info())
-    print("Topic labels:", topic_model.generate_topic_labels(nr_words=1))
-    print("Sample topics from dataset:")
-    for i in range(5):
-        print(f"Doc: {dataset[i]['text'][:50]}... Topic: {dataset[i]['topic']}, Prob: {dataset[i]['topic_prob']}") """
+   
