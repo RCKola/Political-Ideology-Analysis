@@ -62,6 +62,11 @@ def load_datasets(dataset_name: str) -> Dataset:
         project_root = script_dir.parent.parent
         csv_path = project_root / "data" / "Training_data" / "test_data.csv"
         ds = load_dataset("csv", data_files=str(csv_path), split="train")
+    elif dataset_name == "subreddits":
+        script_dir = Path(__file__).resolve().parent
+        project_root = script_dir.parent.parent
+        csv_path = project_root / "data" / "Training_data" / "subreddits.csv"
+        ds = load_dataset("csv", data_files=str(csv_path), split="train")
         
     else:
         raise ValueError(f"Dataset {dataset_name} not supported.")
@@ -75,8 +80,8 @@ def get_datasets(dataset: str,) -> dict[str, DataLoader]:
     Returns:
         dict[str, DataLoader]: A dictionary containing 'train', 'val', and 'test' dataloaders.
     """
-    dst = load_datasets(dataset)
-    print(dst)
+    ds = load_datasets(dataset)
+    
     # Initialize tokenizer
     model_name='all-MiniLM-L6-v2'
     tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/" + model_name)
@@ -94,8 +99,6 @@ def get_dataloaders(dataset: str, batch_size: int, split = True, renew_cache = F
     cache_dir = os.path.join("data", "cached_data")
 
     dataset_cache_path = os.path.join(cache_dir, dataset)
-    
-    topic_model_cache_path = os.path.join(cache_dir, "cached_topic_model")
 
     print(f"Dataset exists: {os.path.exists(dataset_cache_path)}")
     

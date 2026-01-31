@@ -21,3 +21,4 @@ matplotlib
 seaborn
 imbalanced-learn
 phate>=2.0.0
+adjustText
