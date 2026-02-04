@@ -3,15 +3,17 @@ import torch.nn as nn
 import torch.optim as optim
 import torch, math, logging
 from transformers import get_cosine_schedule_with_warmup
+from models.loss import disp_loss, ContrastiveCenterLoss
+from eval.metrics import get_classif_meter
 
 logging.basicConfig(level=logging.INFO)
 
-def disp_loss(x, tau = 0.5):
-    z = torch.flatten(x, 1)
-    dist = nn.functional.pdist(z, p=2).pow(2) / z.shape[1]
-    dist = torch.concat([dist, dist, torch.zeros(z.shape[0]).to(dist.device)]) 
-    loss = torch.logsumexp(-dist/tau, dim=0) - math.log(dist.numel())
-    return loss
+# def disp_loss(x, tau = 0.5):
+#     z = torch.flatten(x, 1)
+#     dist = nn.functional.pdist(z, p=2).pow(2) / z.shape[1]
+#     dist = torch.concat([dist, dist, torch.zeros(z.shape[0]).to(dist.device)]) 
+#     loss = torch.logsumexp(-dist/tau, dim=0) - math.log(dist.numel())
+#     return loss
 
 class PartisanNetModel(L.LightningModule):
     def __init__(
@@ -28,6 +30,12 @@ class PartisanNetModel(L.LightningModule):
         self.criterion = nn.CrossEntropyLoss()
         self.lmbda = lmbda
         self.save_hyperparameters(ignore=['model'])
+        self.regularizer = ContrastiveCenterLoss(
+            num_classes=model.num_classes,
+            feat_dim=model.embed_dim,
+            device=model.device
+        )
+        self.meter = get_classif_meter(num_classes=self.model.num_classes)
 
     def forward(self, x):
         logits, embeddings = self.model(x)
@@ -42,10 +50,10 @@ class PartisanNetModel(L.LightningModule):
 
         out_dict = self.forward(sentences)
         loss = self.criterion(out_dict["logits"], targets)
-        disp = disp_loss(out_dict["embeddings"])
+        reg = self.regularizer(out_dict["embeddings"], targets)
         self.log('train_loss', loss, prog_bar=True)
-        self.log('disp_loss', disp, prog_bar=True)
-        return loss + self.lmbda * disp
+        self.log('reg_loss', reg, prog_bar=True)
+        return loss + self.lmbda * reg
 
     def validation_step(self, batch, batch_idx):
         sentences = batch['text']
@@ -62,11 +70,15 @@ class PartisanNetModel(L.LightningModule):
         sentences = batch['text']
         targets = batch['label']
         logits = self.forward(sentences)["logits"]
+        probs = torch.softmax(logits, dim=1)[:, 1]
 
         loss = self.criterion(logits, targets)
-        acc = (logits.argmax(dim=1) == targets).float().mean()
-        
-        self.log("test_acc", acc, prog_bar=True)
+        try:
+            metrics = self.meter(probs, targets)
+            self.log_dict(metrics, prog_bar=True)
+        except Exception as e:
+            logging.warning(f"Error computing metrics: {e}")
+
         self.log("test_loss", loss, prog_bar=True)
         return loss
     
@@ -149,4 +161,4 @@ if __name__ == "__main__":
     trainer.fit(model, dataloaders['train'], dataloaders['val'])
     trainer.test(model, dataloaders['test'], ckpt_path="best")
 
-    save_model(trainer, model)
+    save_model(trainer, model, path="data/centerloss_sbert")
