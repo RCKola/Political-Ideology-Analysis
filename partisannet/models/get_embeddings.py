@@ -62,12 +62,21 @@ def get_finetuned_embeddings(dataset, model_path="data/fine_tuned_sbert"):
 
     # Extract text and labels
     texts = dataset['text'] # Assuming dataset is a Hugging Face dataset
-    labels = dataset['label']
-    topics = dataset['topics']
+    data = {}
+    for col, feature in dataset.features.items():
+        if col == 'text': continue
+        col_data = dataset[col]
+        if len(col_data) > 0 and isinstance(col_data[0], str):
+            data[col] = col_data # Keep as list
+        else:
+            try:
+                data[col] = torch.tensor(col_data) # Convert to Tensor
+            except (ValueError, TypeError):
+                data[col] = col_data
     
     print("Encoding embeddings...")
     # encode() automatically handles batching and tokenization
     # convert_to_tensor=True gives you a PyTorch tensor on the correct device
     embeddings = model.encode(texts, convert_to_tensor=True, show_progress_bar=True)
     
-    return embeddings, torch.tensor(labels), torch.tensor(topics) if topics is not None else None
+    return embeddings, data

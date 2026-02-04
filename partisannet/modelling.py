@@ -3,8 +3,8 @@ import torch.nn as nn
 import torch.optim as optim
 import torch, math, logging
 from transformers import get_cosine_schedule_with_warmup
-from models.loss import disp_loss, ContrastiveCenterLoss
-from eval.metrics import get_classif_meter
+from .models.loss import disp_loss, ContrastiveCenterLoss
+from .eval.metrics import get_classif_meter
 
 logging.basicConfig(level=logging.INFO)
 

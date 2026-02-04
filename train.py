@@ -47,7 +47,6 @@ def run_training(args):
     results = trainer.test(model, dataloaders['test'], ckpt_path="best")
 
     save_model(trainer, model, path=model_dir)
-    print(f"Model saved to {model_dir}")
     return model_dir, results
 
 def get_parser():
