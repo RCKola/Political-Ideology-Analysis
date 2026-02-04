@@ -70,17 +70,15 @@ class PartisanNetModel(L.LightningModule):
         sentences = batch['text']
         targets = batch['label']
         logits = self.forward(sentences)["logits"]
-        preds = logits.argmax(dim=1)
+        probs = torch.softmax(logits, dim=1)[:, 1]
 
         loss = self.criterion(logits, targets)
-        acc = (preds == targets).float().mean()
         try:
-            metrics = self.meter(preds, targets)
-            self.log_dict(metrics, prog_bar=True, on_epoch=True)
+            metrics = self.meter(probs, targets)
+            self.log_dict(metrics, prog_bar=True)
         except Exception as e:
             logging.warning(f"Error computing metrics: {e}")
 
-        self.log("test_acc", acc, prog_bar=True)
         self.log("test_loss", loss, prog_bar=True)
         return loss
     
