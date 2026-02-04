@@ -119,10 +119,14 @@ def load_topic_model(dataset_name: str, embedding_model=None, renew_cache=False,
         topic_model = BERTopic.load(topic_model_cache_path, embedding_model=embedding_model)        
     else:
         dataloaders = get_dataloaders(dataset_name, batch_size=32, split=False, renew_cache=renew_cache)
-        embeddings, partisan_labels = generate_embeddings(dataloaders['train'], path = embedding_model)
+        embeddings, partisan_labels, _ = generate_embeddings(dataloaders['train'], path = embedding_model)
         temp_ds = Dataset.from_dict({'text': dataloaders['train'].dataset['text']})
         ds, topic_model = include_topics(temp_ds, remove_stopwords=True, num_topics = num_topics, cluster_in_k= cluster_in_k, embeddings=embeddings, embedding_model=embedding_model)
         topic_model.save(topic_model_cache_path, serialization="safetensors", save_embedding_model=True)
+        print("Sample topics from dataset:")
+        for i in range(5):
+            print(f"Doc: {ds[i]['text'][:50]}... Topic: {ds[i]['topic']}, Prob: {ds[i]['topic_prob']}")
+
     return topic_model
 
 

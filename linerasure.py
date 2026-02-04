@@ -338,6 +338,7 @@ def umap_plot(embeddings_erased, topic_labels, title=""):
 
     plt.title(title)
     plt.colorbar(scatter, label="Topic Cluster ID")
+    plt.savefig("Plots/"+title.replace(" ", "_") + ".png")
     plt.show()
 
 if __name__ == "__main__":
@@ -345,14 +346,62 @@ if __name__ == "__main__":
     #cache_path = "./cached_processed_dataset"
     single_shot = True
     trained_embeddings = True
+    test = True
 
-    topic_model = load_topic_model("DemRep", embedding_model="data/fine_tuned_sbert", renew_cache=False, num_topics=None, cluster_in_k=20)
-    dataloaders = get_dataloaders("testdata", batch_size=32, split=False, renew_cache=False)
-    embeddings, partisan_labels = generate_embeddings(dataloaders['train'], path = "data/fine_tuned_sbert")
+    topic_model = load_topic_model("DemRep", embedding_model="data/fine_tuned_sbert", renew_cache=False, num_topics=None, cluster_in_k=10)
+    dataloaders = get_dataloaders("subreddits", batch_size=32, split=False, renew_cache=False)
+    embeddings, partisan_labels, _ = generate_embeddings(dataloaders['train'], path = "data/fine_tuned_sbert")
     temp_ds = Dataset.from_dict({'text': dataloaders['train'].dataset['text']})
     ds = predict_topics(temp_ds, topic_model)
 
-    
+    if(test):
+        from collections import Counter
+        import pandas as pd
+        topic_counts = Counter(ds['topic'])
+        print(topic_counts)
+        X_all = np.array(embeddings)
+        topics_all = np.array(ds['topic'])
+        print(f"Embedding shape: {X_all.shape}")
+        TOP_N = 6
+        top_topic_labels = pd.Series(topics_all).value_counts().nlargest(TOP_N).index.tolist()
+
+        print(f"Filtering for top topics: {top_topic_labels}")
+
+        # Create a boolean mask for just these topics
+        mask = np.isin(topics_all, top_topic_labels)
+
+        # Apply mask to get clean arrays
+        X_filtered = X_all[mask]
+        topics_filtered = topics_all[mask]
+        eraser = LeaceEraser.fit(torch.tensor(X_filtered), torch.tensor(topics_filtered))
+        X_erased = eraser(torch.tensor(X_filtered)).numpy()
+        reducer = umap.UMAP(random_state=42)
+
+        print("Running UMAP on Original...")
+        coords_orig = reducer.fit_transform(X_filtered)
+
+        print("Running UMAP on Erased...")
+        coords_erased = reducer.fit_transform(X_erased)
+
+        # 5. Plot
+        fig, axes = plt.subplots(1, 2, figsize=(18, 8))
+
+        # Helper to make plots pretty
+        def plot_umap(ax, coords, labels, title):
+            sns.scatterplot(
+                x=coords[:, 0], y=coords[:, 1], 
+                hue=labels, palette='tab10', s=15, alpha=0.7, ax=ax
+            )
+            ax.set_title(title, fontsize=14)
+            ax.legend(title="Topic", bbox_to_anchor=(1, 1))
+
+        plot_umap(axes[0], coords_orig, topics_filtered, "Original: Topics Split by Ideology?")
+        plot_umap(axes[1], coords_erased, topics_filtered, "Erased: Do Topics Merge?")
+
+        plt.tight_layout()
+        plt.show()
+
+        exit()
     topics = torch.tensor(ds['topic']).long().to(embeddings.device)
 
     #old_cpu = old_topics.cpu().numpy() if hasattr(old_topics, 'cpu') else old_topics
