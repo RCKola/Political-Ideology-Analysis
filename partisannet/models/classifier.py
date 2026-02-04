@@ -19,6 +19,7 @@ class SBERTClassifier(nn.Module):
                 param.requires_grad = False
 
         self.embed_dim = self.sbert.get_sentence_embedding_dimension()
+        self.num_classes = num_classes
         self.classifier = nn.Linear(self.embed_dim, num_classes)
         print("SBERT modules:", [module for module in self.sbert.named_children()])
         if lora_r is not None and lora_r > 0:
