@@ -348,7 +348,65 @@ if __name__ == "__main__":
     trained_embeddings = True
     test = True
 
-    topic_model = load_topic_model("DemRep", embedding_model="data/fine_tuned_sbert", renew_cache=False, num_topics=None, cluster_in_k=10)
+    centroid_test = True
+    
+    topic_model, X_centroids, topic_labels = load_topic_model("topic_data", embedding_model="data/centerloss_sbert", renew_cache=False, num_topics=30, cluster_in_k=None)
+    
+    if centroid_test:
+        from sentence_transformers import SentenceTransformer
+        
+        derived_direction = np.load('data/cached_data/political_axis.npy')
+        direction = derived_direction / np.linalg.norm(derived_direction)
+
+        def remove_component(embeddings, direction):
+            projections = (embeddings @ direction.T).reshape(-1, 1) * direction
+            return embeddings - projections
+
+        X_erased = remove_component(X_centroids, direction)
+
+        # --- 4. Plotting (PCA is usually better than UMAP for centroids) ---
+        from sklearn.decomposition import PCA
+
+        # Fit PCA on the ORIGINAL to define the axes, then transform both
+        # This keeps the "view" consistent so you can see them move
+        pca = PCA(n_components=2)
+        coords_orig = pca.fit_transform(X_centroids)
+        coords_erased = pca.transform(X_erased) # Use same axes!
+
+        # Visualization
+        fig, axes = plt.subplots(1, 2, figsize=(16, 8))
+
+        # Plot A: Original Centroids
+        # Color by their position on the political axis (X-axis usually captures variance)
+        sns.scatterplot(
+            x=coords_orig[:, 0], y=coords_orig[:, 1], 
+            s=100, hue=coords_orig[:, 0], palette="coolwarm", legend=False, ax=axes[0]
+        )
+        # Label a few important topics
+        for i, txt in enumerate(topic_labels):
+            if i % 5 == 0: # Label every 5th topic to avoid clutter
+                axes[0].text(coords_orig[i,0]+0.02, coords_orig[i,1], txt, fontsize=9)
+
+        axes[0].set_title("Original Topic Centroids (Politicized)")
+        axes[0].set_xlabel("Principal Component 1 (Likely Political)")
+
+        # Plot B: Erased Centroids
+        sns.scatterplot(
+            x=coords_erased[:, 0], y=coords_erased[:, 1], 
+            s=100, color="grey", ax=axes[1] # Grey because politics is gone!
+        )
+        for i, txt in enumerate(topic_labels):
+            if i % 5 == 0:
+                axes[1].text(coords_erased[i,0]+0.02, coords_erased[i,1], txt, fontsize=9)
+
+        axes[1].set_title("After Linear Erasure (Pure Semantics)")
+        axes[1].set_xlabel("Principal Component 1 (Politics Removed)")
+
+        plt.tight_layout()
+        plt.show()
+
+        exit()
+
     dataloaders = get_dataloaders("subreddits", batch_size=32, split=False, renew_cache=False)
     embeddings, partisan_labels, _ = generate_embeddings(dataloaders['train'], path = "data/fine_tuned_sbert")
     temp_ds = Dataset.from_dict({'text': dataloaders['train'].dataset['text']})

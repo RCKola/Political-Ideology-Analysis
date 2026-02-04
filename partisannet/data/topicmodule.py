@@ -4,13 +4,24 @@ from datasets import Dataset
 import os
 from partisannet.data.datamodule import get_dataloaders
 from partisannet.models.get_embeddings import generate_embeddings
-
-
+from sklearn.cluster import KMeans
+import numpy as np
 
 def get_topics(docs: list[str], num_topics: int | None = None, remove_stopwords: bool = False, embeddings=None, embedding_model=None) -> tuple[BERTopic, list[int], list[float]]:
 
     vectorizer = CountVectorizer(stop_words='english' if remove_stopwords else None, ngram_range=(1,2))
-    topic_model = BERTopic(nr_topics=num_topics, vectorizer_model=vectorizer, embedding_model=embedding_model)
+    hdbscan_model = None
+    if num_topics is not None:
+        print(f"Using K-Means to force {num_topics} balanced clusters...")
+        hdbscan_model = KMeans(n_clusters=num_topics, random_state=42)
+        # Set nr_topics to None because the clustering model already handles the count
+        nr_topics_arg = None 
+    else:
+        # Fallback to default behavior if no number is given
+        nr_topics_arg = "auto"
+
+    topic_model = BERTopic(nr_topics=nr_topics_arg, vectorizer_model=vectorizer, embedding_model=embedding_model, hdbscan_model=hdbscan_model)
+    
     if embeddings is not None:
         if hasattr(embeddings, "cpu"):
             embeddings = embeddings.cpu().numpy()
@@ -71,7 +82,6 @@ def include_topics(dataset: Dataset, num_topics: int | None = None, remove_stopw
         dataset = dataset.remove_columns('topic_prob')
 
     dataset = dataset.add_column('topic', topics)
-    dataset = dataset.add_column('topic_prob', probs)
 
     return dataset, topic_model
 
@@ -116,7 +126,9 @@ def load_topic_model(dataset_name: str, embedding_model=None, renew_cache=False,
 
     if os.path.exists(topic_model_cache_path) and not renew_cache:
         print("Loading topic model from disk...")
-        topic_model = BERTopic.load(topic_model_cache_path, embedding_model=embedding_model)        
+        topic_model = BERTopic.load(topic_model_cache_path, embedding_model=embedding_model)
+        centroid_matrix = np.load(os.path.join(topic_model_cache_path, "centroid_matrix.npy"))
+        topic_labels = np.load(os.path.join(topic_model_cache_path, "topic_labels.npy"), allow_pickle=True).tolist()
     else:
         dataloaders = get_dataloaders(dataset_name, batch_size=32, split=False, renew_cache=renew_cache)
         embeddings, partisan_labels, _ = generate_embeddings(dataloaders['train'], path = embedding_model)
@@ -125,9 +137,22 @@ def load_topic_model(dataset_name: str, embedding_model=None, renew_cache=False,
         topic_model.save(topic_model_cache_path, serialization="safetensors", save_embedding_model=True)
         print("Sample topics from dataset:")
         for i in range(5):
-            print(f"Doc: {ds[i]['text'][:50]}... Topic: {ds[i]['topic']}, Prob: {ds[i]['topic_prob']}")
+            print(f"Doc: {ds[i]['text'][:50]}... Topic: {ds[i]['topic']}")
+        unique_topics = sorted(list(set(ds['topic'])))
+        if -1 in unique_topics: unique_topics.remove(-1)
 
-    return topic_model
+        centroid_matrix = []
+        topic_labels = []
+        for topic in unique_topics:
+            
+            topic_embeddings = embeddings[ds['topic'] == topic]
+            centroid = topic_embeddings.mean(axis=0)
+            centroid_matrix.append(centroid)
+            topic_labels.append(topic_model.get_topic_info(topic)['Name']) 
+        centroid_matrix =  np.array(centroid_matrix)
+        np.save(os.path.join(topic_model_cache_path, "centroid_matrix.npy"), centroid_matrix)
+        np.save(os.path.join(topic_model_cache_path, "topic_labels.npy"), np.array(topic_labels, dtype=object))
+    return topic_model, centroid_matrix, topic_labels
 
 
 if __name__ == "__main__":

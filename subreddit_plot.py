@@ -17,17 +17,18 @@ if __name__ == "__main__":
     trained_embeddings = True
 
     
-    dataloaders = get_dataloaders("subreddits", batch_size=32, split=False, renew_cache=False)
-    embeddings, partisan_labels, subreddits = generate_embeddings(dataloaders['train'], path = "data/fine_tuned_sbert")
-    df =  pd.DataFrame({"embedding": list(embeddings), "subreddit": subreddits})
+    dataloaders = get_dataloaders("DemRep", batch_size=32, split=False, renew_cache=False)
+    embeddings, partisan_labels, subreddits = generate_embeddings(dataloaders['train'], path = "data/centerloss_sbert")
+    df =  pd.DataFrame({"embedding": list(embeddings), "subreddit": partisan_labels})
     
     subreddit_centroids = df.groupby('subreddit')['embedding'].apply(
         lambda x: np.mean(np.vstack(x), axis=0)
     ).to_dict()
     print(subreddit_centroids.keys())
     # 1. Define the poles
-    vec_dem = subreddit_centroids['democrats']       # The "Left" Pole
-    vec_con = subreddit_centroids['Conservative']   # The "Right" Pole
+    np.save('data/cached_data/political_axis.npy', subreddit_centroids[0] - subreddit_centroids[1])  # Save the political axis for future use
+    vec_dem = subreddit_centroids[0]       # The "Left" Pole
+    vec_con = subreddit_centroids[1]   # The "Right" Pole
 
     # 2. Construct the Axis Vector
     # (Dem - Con) creates a vector pointing towards the Democrat side

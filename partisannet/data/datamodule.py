@@ -67,7 +67,11 @@ def load_datasets(dataset_name: str) -> Dataset:
         project_root = script_dir.parent.parent
         csv_path = project_root / "data" / "Training_data" / "subreddits.csv"
         ds = load_dataset("csv", data_files=str(csv_path), split="train")
-        
+    elif dataset_name == "topic_data":
+        script_dir = Path(__file__).resolve().parent
+        project_root = script_dir.parent.parent
+        csv_path = project_root / "data" / "Training_data" / "topics_data.csv"
+        ds = load_dataset("csv", data_files=str(csv_path), split="train") 
     else:
         raise ValueError(f"Dataset {dataset_name} not supported.")
     return ds
