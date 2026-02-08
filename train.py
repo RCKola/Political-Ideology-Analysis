@@ -1,7 +1,8 @@
 import argparse
 
 import torch
-import pytorch_lightning as L
+import wandb
+import lightning.pytorch as L
 from partisannet.modelling import PartisanNetModel, save_model
 
 from partisannet.data.datamodule import get_dataloaders
@@ -19,15 +20,13 @@ def run_training(args):
     model_name = args.model_name
     model_dir = f"data/{model_name.replace('/', '_')}_finetuned"
     
-    dataloaders, topic_model = get_dataloaders(
+    dataloaders = get_dataloaders(
         "DemRep", 
         batch_size=args.batch_size, 
-        split=True, 
-        num_topics=None, 
-        cluster_in_k=40, 
+        split=True,
         renew_cache=True
     )
-    sbert_model = SBERTClassifier(lora_r=args.lora_r)
+    sbert_model = SBERTClassifier(model_name=args.model_name, lora_r=args.lora_r)
     model = PartisanNetModel(sbert_model, lr=args.lr)
     logger = setup_logger(log_dir)
     logger.watch(model, log="all")
@@ -47,6 +46,7 @@ def run_training(args):
     results = trainer.test(model, dataloaders['test'], ckpt_path="best")
 
     save_model(trainer, model, path=model_dir)
+    wandb.finish()
     return model_dir, results
 
 def get_parser():

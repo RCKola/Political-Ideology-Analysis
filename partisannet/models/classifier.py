@@ -23,10 +23,18 @@ class SBERTClassifier(nn.Module):
         self.classifier = nn.Linear(self.embed_dim, num_classes)
         print("SBERT modules:", [module for module in self.sbert.named_children()])
         if lora_r is not None and lora_r > 0:
+            # Detect target modules based on model architecture
+            # MPNet uses q/v, BERT/RoBERTa/MiniLM use query/value
+            module_names = [name for name, _ in self.sbert.named_modules()]
+            if any(".attn.q" in name for name in module_names):
+                target_modules = ["q", "v"]  # MPNet style
+            else:
+                target_modules = ["query", "value"]  # BERT style
+
             peft_config = LoraConfig(
                 task_type=TaskType.FEATURE_EXTRACTION,
                 inference_mode=False,
-                target_modules=["query", "value"],
+                target_modules=target_modules,
                 r=lora_r,
                 lora_alpha=2*lora_r,
                 lora_dropout=0.1
@@ -54,7 +62,7 @@ class SBERTClassifier(nn.Module):
     @torch.inference_mode()
     def predict(self, sentences):
         logits = self.forward(sentences)[0]
-        probabilities = F.softmax(dim=1)(logits)
+        probabilities = F.softmax(logits, dim=1)
         return probabilities
 
 
