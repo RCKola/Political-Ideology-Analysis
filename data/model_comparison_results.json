@@ -1,0 +1,117 @@
+[
+  {
+    "model_name": "nli-roberta-base",
+    "model_path": "data/nli-roberta-base_finetuned",
+    "test_results": [
+      {
+        "test_BinaryAccuracy": 0.8826000094413757,
+        "test_BinaryPrecision": 0.8920581936836243,
+        "test_BinaryRecall": 0.8714436292648315,
+        "test_BinaryF1Score": 0.8810519576072693,
+        "test_BinaryAUROC": 0.9392571449279785,
+        "test_BinaryAveragePrecision": 0.9338746070861816,
+        "test_BinaryMatthewsCorrCoef": 0.7647610902786255,
+        "test_loss": 0.5813553333282471
+      }
+    ],
+    "config": {
+      "max_epochs": 30,
+      "batch_size": 128,
+      "lora_r": 32,
+      "lr": 5e-05
+    },
+    "timestamp": "2026-02-08T16:40:51.633245"
+  },
+  {
+    "model_name": "nli-bert-base",
+    "model_path": "data/nli-bert-base_finetuned",
+    "test_results": [
+      {
+        "test_BinaryAccuracy": 0.8871999979019165,
+        "test_BinaryPrecision": 0.9002648591995239,
+        "test_BinaryRecall": 0.8707085847854614,
+        "test_BinaryF1Score": 0.8847123980522156,
+        "test_BinaryAUROC": 0.9380794167518616,
+        "test_BinaryAveragePrecision": 0.931760847568512,
+        "test_BinaryMatthewsCorrCoef": 0.7742801904678345,
+        "test_loss": 0.6035796999931335
+      }
+    ],
+    "config": {
+      "max_epochs": 30,
+      "batch_size": 128,
+      "lora_r": 32,
+      "lr": 5e-05
+    },
+    "timestamp": "2026-02-08T17:58:13.743018"
+  },
+  {
+    "model_name": "paraphrase-MiniLM-L12-v2",
+    "model_path": "data/paraphrase-MiniLM-L12-v2_finetuned",
+    "test_results": [
+      {
+        "test_BinaryAccuracy": 0.8511999845504761,
+        "test_BinaryPrecision": 0.8618406057357788,
+        "test_BinaryRecall": 0.836729884147644,
+        "test_BinaryF1Score": 0.8482040762901306,
+        "test_BinaryAUROC": 0.9241626262664795,
+        "test_BinaryAveragePrecision": 0.9258553981781006,
+        "test_BinaryMatthewsCorrCoef": 0.7027137875556946,
+        "test_loss": 0.389418363571167
+      }
+    ],
+    "config": {
+      "max_epochs": 30,
+      "batch_size": 128,
+      "lora_r": 32,
+      "lr": 5e-05
+    },
+    "timestamp": "2026-02-08T19:30:45.001533"
+  },
+  {
+    "model_name": "all-MiniLM-L12-v2",
+    "model_path": "data/all-MiniLM-L12-v2_finetuned",
+    "test_results": [
+      {
+        "test_BinaryAccuracy": 0.8583999872207642,
+        "test_BinaryPrecision": 0.866489052772522,
+        "test_BinaryRecall": 0.8495718836784363,
+        "test_BinaryF1Score": 0.8567099571228027,
+        "test_BinaryAUROC": 0.9287441372871399,
+        "test_BinaryAveragePrecision": 0.9288354516029358,
+        "test_BinaryMatthewsCorrCoef": 0.7174214124679565,
+        "test_loss": 0.38264885544776917
+      }
+    ],
+    "config": {
+      "max_epochs": 30,
+      "batch_size": 128,
+      "lora_r": 32,
+      "lr": 5e-05
+    },
+    "timestamp": "2026-02-08T20:21:19.968922"
+  },
+  {
+    "model_name": "all-MiniLM-L6-v2",
+    "model_path": "data/all-MiniLM-L6-v2_finetuned",
+    "test_results": [
+      {
+        "test_BinaryAccuracy": 0.8271999955177307,
+        "test_BinaryPrecision": 0.837069034576416,
+        "test_BinaryRecall": 0.814310610294342,
+        "test_BinaryF1Score": 0.8240980505943298,
+        "test_BinaryAUROC": 0.8979272246360779,
+        "test_BinaryAveragePrecision": 0.8994284868240356,
+        "test_BinaryMatthewsCorrCoef": 0.6552665829658508,
+        "test_loss": 0.4176342785358429
+      }
+    ],
+    "config": {
+      "max_epochs": 30,
+      "batch_size": 128,
+      "lora_r": 32,
+      "lr": 5e-05
+    },
+    "timestamp": "2026-02-08T21:05:05.120233"
+  }
+]
