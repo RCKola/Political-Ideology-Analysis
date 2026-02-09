@@ -4,23 +4,63 @@ from datasets import Dataset
 import os
 from partisannet.data.datamodule import get_dataloaders
 from partisannet.models.get_embeddings import generate_embeddings
-from sklearn.cluster import KMeans
 import numpy as np
+from umap import UMAP
+from hdbscan import HDBSCAN
+import spacy
+import joblib
+import tqdm
 
-def get_topics(docs: list[str], num_topics: int | None = None, remove_stopwords: bool = False, embeddings=None, embedding_model=None) -> tuple[BERTopic, list[int], list[float]]:
+def lemmatize_docs(docs):
+    """Lemmatizes a list of strings using spaCy."""
+    print("Pre-lemmatizing documents (this takes a moment)...")
+    try:
+        nlp = spacy.load("en_core_web_sm", disable=['parser', 'ner'])
+    except OSError:
+         raise OSError("Please run 'python -m spacy download en_core_web_sm' first.")
+    
+    clean_docs = []
+    # Using nlp.pipe is much faster for processing a list of texts
+    for doc in tqdm.tqdm(nlp.pipe(docs, batch_size=1000), total=len(docs)):
+        lemmas = [
+            token.lemma_.lower() 
+            for token in doc 
+            if not token.is_stop and not token.is_punct and token.text.strip()
+        ]
+        clean_docs.append(" ".join(lemmas))
+    return clean_docs
 
-    vectorizer = CountVectorizer(stop_words='english' if remove_stopwords else None, ngram_range=(1,2))
+
+def get_topics(docs: list[str], num_topics: int | None = None, remove_stopwords: bool = True, embeddings=None, embedding_model=None) -> tuple[BERTopic, list[int], list[float]]:
+    clean_docs = lemmatize_docs(docs)   
+
+    vectorizer = CountVectorizer(
+        ngram_range=(1, 2),
+        stop_words='english' if remove_stopwords else None,
+    )
     hdbscan_model = None
     if num_topics is not None:
-        print(f"Using K-Means to force {num_topics} balanced clusters...")
-        hdbscan_model = KMeans(n_clusters=num_topics, random_state=42)
+        
+        hdbscan_model = HDBSCAN(
+            min_cluster_size=80, # LOW value = granular topics (Default is usually larger)
+            metric='euclidean', 
+            cluster_selection_method='eom', 
+            prediction_data=True
+        )
         # Set nr_topics to None because the clustering model already handles the count
+        umap_model = UMAP(
+            n_neighbors=40,      # LOW value = granular topics
+            n_components=5, 
+            min_dist=0.0, 
+            metric='cosine', 
+            random_state=42
+        )
         nr_topics_arg = None 
     else:
         # Fallback to default behavior if no number is given
         nr_topics_arg = "auto"
 
-    topic_model = BERTopic(nr_topics=nr_topics_arg, vectorizer_model=vectorizer, embedding_model=embedding_model, hdbscan_model=hdbscan_model)
+    topic_model = BERTopic(nr_topics=nr_topics_arg, vectorizer_model=vectorizer, embedding_model=embedding_model, hdbscan_model=hdbscan_model, umap_model=umap_model)
     
     if embeddings is not None:
         if hasattr(embeddings, "cpu"):
@@ -37,7 +77,21 @@ def include_topics(dataset: Dataset, num_topics: int | None = None, remove_stopw
     """Adds topic modeling information to the dataset using BERTopic."""
 
     docs = [text for text in dataset['text']]
-    
+    doc_lengths = [len(d) for d in docs]
+
+    print(f"Max document length: {max(doc_lengths)}")
+    print(f"Average document length: {sum(doc_lengths) / len(doc_lengths)}")
+
+    # Find the index of the problematic document
+    import numpy as np
+    huge_docs_indices = np.where(np.array(doc_lengths) > 1000000)[0]
+    print(f"Indices of huge docs: {huge_docs_indices}")
+
+    # Print a preview of the huge doc to see what it is
+    if len(huge_docs_indices) > 0:
+        idx = huge_docs_indices[0]
+        print(f"\nPreview of Doc {idx}: {docs[idx][:200]}...")
+        
     emb_numpy = None
     if embeddings is not None:
         if hasattr(embeddings, "cpu"):
@@ -48,7 +102,7 @@ def include_topics(dataset: Dataset, num_topics: int | None = None, remove_stopw
     # 1. Initial Fit (~200 topics)
     topic_model, topics, probs = get_topics(docs, num_topics=num_topics, remove_stopwords=remove_stopwords, embeddings=embeddings, embedding_model=embedding_model)
    
-
+    print(f"Initial topic count: {len(set(topics))}")
     # 2. Reduce Topics
     if cluster_in_k is not None:
         print(f"Reducing topics to {cluster_in_k}...")
@@ -129,6 +183,7 @@ def load_topic_model(dataset_name: str, embedding_model=None, renew_cache=False,
         topic_model = BERTopic.load(topic_model_cache_path, embedding_model=embedding_model)
         centroid_matrix = np.load(os.path.join(topic_model_cache_path, "centroid_matrix.npy"))
         topic_labels = np.load(os.path.join(topic_model_cache_path, "topic_labels.npy"), allow_pickle=True).tolist()
+        percentage = np.load(os.path.join(topic_model_cache_path, "topic_percentages.npy"))
     else:
         dataloaders = get_dataloaders(dataset_name, batch_size=32, split=False, renew_cache=renew_cache)
         embeddings, partisan_labels, _ = generate_embeddings(dataloaders['train'], path = embedding_model)
@@ -140,19 +195,29 @@ def load_topic_model(dataset_name: str, embedding_model=None, renew_cache=False,
             print(f"Doc: {ds[i]['text'][:50]}... Topic: {ds[i]['topic']}")
         unique_topics = sorted(list(set(ds['topic'])))
         if -1 in unique_topics: unique_topics.remove(-1)
-
+        clf_tot = joblib.load("data/svm/svm_model.joblib")
+        predictions = clf_tot.predict(embeddings)
         centroid_matrix = []
         topic_labels = []
+        percentage = []
         for topic in unique_topics:
-            
-            topic_embeddings = embeddings[ds['topic'] == topic]
+            topics_array = np.array(ds['topic'])    
+            mask = (topics_array == topic)
+            topic_embeddings = embeddings[mask]
+            avg_topic_predictions = np.mean(predictions[mask])
+            print(f"Topic {topic} average prediction (Right-Leaning %): {avg_topic_predictions:.4f}")
+            percentage.append(avg_topic_predictions)
+            print(f"Topic {topic} raw shape: {topic_embeddings.shape[0]}")
             centroid = topic_embeddings.mean(axis=0)
+            print(f"Topic {topic} centroid shape: {centroid.shape}")
             centroid_matrix.append(centroid)
             topic_labels.append(topic_model.get_topic_info(topic)['Name']) 
         centroid_matrix =  np.array(centroid_matrix)
+        print(centroid_matrix.shape)
         np.save(os.path.join(topic_model_cache_path, "centroid_matrix.npy"), centroid_matrix)
         np.save(os.path.join(topic_model_cache_path, "topic_labels.npy"), np.array(topic_labels, dtype=object))
-    return topic_model, centroid_matrix, topic_labels
+        np.save(os.path.join(topic_model_cache_path, "topic_percentages.npy"), np.array(percentage))
+    return topic_model, centroid_matrix, topic_labels, percentage
 
 
 if __name__ == "__main__":

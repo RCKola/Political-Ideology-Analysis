@@ -1,13 +1,11 @@
 import sys
 import os
-import torch
-import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.svm import LinearSVC
-from sklearn.model_selection import train_test_split
-from sentence_transformers import SentenceTransformer
+
+
 import umap
+import joblib
 
 # 1. Setup Imports
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "."))
@@ -18,22 +16,18 @@ from partisannet.models.get_embeddings import generate_embeddings
 
 def main():
     # --- CONFIG ---
-    MODEL_PATH = "data/fine_tuned_sbert" # Or "data/fine_tuned_sbert_regression"
-    SAMPLE_SIZE = 3000
     # --------------
 
     # 1. Load Data
     print("Loading Data...")
-    dataloaders, topic_model = get_dataloaders("DemRep", batch_size=32, split=False, num_topics=None, cluster_in_k=40, renew_cache=False)
+    dataloaders = get_dataloaders("testdata", batch_size=32, split=False, renew_cache=False)
     
     
     
-    embeddings, labels, old_topics = generate_embeddings(dataloaders['train'], path = "data/fine_tuned_sbert")
+    embeddings, labels,_ = generate_embeddings(dataloaders['train'], path = "data/centerloss_sbert")
     # 3. Train Linear SVM (To find the decision boundary)
     print("Training Linear SVM to find the 'Line'...")
-    svm = LinearSVC(C=1.0, max_iter=10000, dual="auto")
-    svm.fit(embeddings, labels)
-    
+    svm = joblib.load("data/svm/svm_model.joblib")
     # 4. Calculate Distances
     # decision_function returns the signed distance to the hyperplane
     # Positive = Class 1 (Right), Negative = Class 0 (Left)

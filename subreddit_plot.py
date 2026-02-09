@@ -1,4 +1,5 @@
 
+from concept_erasure import LeaceEraser
 from partisannet.data.topicmodule import load_topic_model
 from partisannet.data.datamodule import get_dataloaders
 from partisannet.models.get_embeddings import generate_embeddings
@@ -9,31 +10,70 @@ import matplotlib.pyplot as plt
 from numpy import dot
 import seaborn as sns
 from adjustText import adjust_text
+import joblib
+import torch
 
 if __name__ == "__main__":
     
-
-    # Load pre-trained topic model and data
-    trained_embeddings = True
-
+    linerasure = True
     
-    dataloaders = get_dataloaders("DemRep", batch_size=32, split=False, renew_cache=False)
+    dataloaders = get_dataloaders("subreddits", batch_size=32, split=False, renew_cache=False)
     embeddings, partisan_labels, subreddits = generate_embeddings(dataloaders['train'], path = "data/centerloss_sbert")
-    df =  pd.DataFrame({"embedding": list(embeddings), "subreddit": partisan_labels})
+    df =  pd.DataFrame({"embedding": list(embeddings), "subreddit": subreddits})
     
     subreddit_centroids = df.groupby('subreddit')['embedding'].apply(
         lambda x: np.mean(np.vstack(x), axis=0)
     ).to_dict()
     print(subreddit_centroids.keys())
     # 1. Define the poles
-    np.save('data/cached_data/political_axis.npy', subreddit_centroids[0] - subreddit_centroids[1])  # Save the political axis for future use
-    vec_dem = subreddit_centroids[0]       # The "Left" Pole
-    vec_con = subreddit_centroids[1]   # The "Right" Pole
+     # The "Right" Pole
 
     # 2. Construct the Axis Vector
     # (Dem - Con) creates a vector pointing towards the Democrat side
-    political_axis = vec_dem - vec_con
+    if linerasure:
+        X_centroids = np.vstack(list(subreddit_centroids.values()))
+        svm = joblib.load("data/svm/svm_model.joblib")
+        labels = svm.predict(X_centroids)
+        eraser = LeaceEraser.fit(torch.tensor(X_centroids), torch.tensor(labels))
 
+        X_erased = eraser(torch.tensor(X_centroids)).numpy()
+        from sklearn.decomposition import PCA
+
+        # Fit PCA on the ORIGINAL to define the axes, then transform both
+        # This keeps the "view" consistent so you can see them move
+        pca = PCA(n_components=2)
+        coords_orig = pca.fit_transform(X_centroids)
+        coords_erased = pca.transform(X_erased) # Use same axes!
+
+        # Visualization
+        fig, axes = plt.subplots(1, 2, figsize=(16, 8))
+
+        # Plot A: Original Centroids
+        # Color by their position on the political axis (X-axis usually captures variance)
+        sns.scatterplot(
+            x=coords_orig[:, 0], y=coords_orig[:, 1], 
+            s=100, hue=labels, palette="coolwarm", legend=True, ax=axes[0]
+        )
+        # Label a few important topics
+    
+
+        axes[0].set_title("Original Topic Centroids (Politicized)")
+        axes[0].set_xlabel("Principal Component 1 (Likely Political)")
+
+        # Plot B: Erased Centroids
+        sns.scatterplot(
+            x=coords_erased[:, 0], y=coords_erased[:, 1], 
+            s=100, hue=coords_orig[:, 0], palette="coolwarm", legend=False, ax=axes[1] # Grey because politics is gone!
+        )
+
+        axes[1].set_title("After Linear Erasure (Pure Semantics)")
+        axes[1].set_xlabel("Principal Component 1 (Politics Removed)")
+
+        plt.tight_layout()
+        plt.show()
+
+        exit()
+    political_axis = np.load("data/cached_data/political_axis.npy")
     scores = {}
     for sub, centroid in subreddit_centroids.items():
         # Project the centroid onto the axis

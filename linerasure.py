@@ -16,9 +16,9 @@ import matplotlib.pyplot as plt
 from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, accuracy_score
-from imblearn.over_sampling import RandomOverSampler
 from datasets import Dataset
 from sklearn.metrics import adjusted_rand_score
+import joblib
 
 
 
@@ -348,21 +348,20 @@ if __name__ == "__main__":
     trained_embeddings = True
     test = True
 
-    centroid_test = True
+    centroid_test = False
     
-    topic_model, X_centroids, topic_labels = load_topic_model("topic_data", embedding_model="data/centerloss_sbert", renew_cache=False, num_topics=30, cluster_in_k=None)
+    topic_model, X_centroids, topic_labels = load_topic_model("topic_data", embedding_model="data/centerloss_sbert", renew_cache=False, num_topics=1000, cluster_in_k=None)
+
+    print(X_centroids.shape)
     
     if centroid_test:
         from sentence_transformers import SentenceTransformer
         
-        derived_direction = np.load('data/cached_data/political_axis.npy')
-        direction = derived_direction / np.linalg.norm(derived_direction)
+        svm = joblib.load("data/svm/svm_model.joblib")
+        labels = svm.predict(X_centroids)
+        eraser = LeaceEraser.fit(torch.tensor(X_centroids), torch.tensor(labels))
 
-        def remove_component(embeddings, direction):
-            projections = (embeddings @ direction.T).reshape(-1, 1) * direction
-            return embeddings - projections
-
-        X_erased = remove_component(X_centroids, direction)
+        X_erased = eraser(torch.tensor(X_centroids)).numpy()
 
         # --- 4. Plotting (PCA is usually better than UMAP for centroids) ---
         from sklearn.decomposition import PCA
@@ -380,7 +379,7 @@ if __name__ == "__main__":
         # Color by their position on the political axis (X-axis usually captures variance)
         sns.scatterplot(
             x=coords_orig[:, 0], y=coords_orig[:, 1], 
-            s=100, hue=coords_orig[:, 0], palette="coolwarm", legend=False, ax=axes[0]
+            s=100, hue=labels, palette="coolwarm", legend=True, ax=axes[0]
         )
         # Label a few important topics
         for i, txt in enumerate(topic_labels):
@@ -393,7 +392,7 @@ if __name__ == "__main__":
         # Plot B: Erased Centroids
         sns.scatterplot(
             x=coords_erased[:, 0], y=coords_erased[:, 1], 
-            s=100, color="grey", ax=axes[1] # Grey because politics is gone!
+            s=100, hue=coords_orig[:, 0], palette="coolwarm", legend=False, ax=axes[1] # Grey because politics is gone!
         )
         for i, txt in enumerate(topic_labels):
             if i % 5 == 0:
@@ -407,7 +406,7 @@ if __name__ == "__main__":
 
         exit()
 
-    dataloaders = get_dataloaders("subreddits", batch_size=32, split=False, renew_cache=False)
+    dataloaders = get_dataloaders("testdata", batch_size=32, split=False, renew_cache=False)
     embeddings, partisan_labels, _ = generate_embeddings(dataloaders['train'], path = "data/fine_tuned_sbert")
     temp_ds = Dataset.from_dict({'text': dataloaders['train'].dataset['text']})
     ds = predict_topics(temp_ds, topic_model)
@@ -420,18 +419,21 @@ if __name__ == "__main__":
         X_all = np.array(embeddings)
         topics_all = np.array(ds['topic'])
         print(f"Embedding shape: {X_all.shape}")
-        TOP_N = 6
+        TOP_N = 15
         top_topic_labels = pd.Series(topics_all).value_counts().nlargest(TOP_N).index.tolist()
 
         print(f"Filtering for top topics: {top_topic_labels}")
 
         # Create a boolean mask for just these topics
         mask = np.isin(topics_all, top_topic_labels)
-
+        svm = joblib.load("data/svm/svm_model.joblib")
+        labels = svm.predict(X_all[mask])
         # Apply mask to get clean arrays
         X_filtered = X_all[mask]
         topics_filtered = topics_all[mask]
-        eraser = LeaceEraser.fit(torch.tensor(X_filtered), torch.tensor(topics_filtered))
+        topic_names = [topic_model.get_topic_info(topic)['Name'] for topic in topics_filtered]
+
+        eraser = LeaceEraser.fit(torch.tensor(X_filtered), torch.tensor(labels))
         X_erased = eraser(torch.tensor(X_filtered)).numpy()
         reducer = umap.UMAP(random_state=42)
 
@@ -457,6 +459,7 @@ if __name__ == "__main__":
         plot_umap(axes[1], coords_erased, topics_filtered, "Erased: Do Topics Merge?")
 
         plt.tight_layout()
+        plt.savefig("Plots/topics_umap.png")
         plt.show()
 
         exit()

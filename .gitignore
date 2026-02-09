@@ -216,3 +216,4 @@ data/cached_data/*
 data/outputs/*
 data/fine_tuned_sbert_old/*
 
+SR/*
