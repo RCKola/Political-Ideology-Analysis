@@ -15,16 +15,106 @@ import torch
 
 if __name__ == "__main__":
     
-    linerasure = True
-    
+    linerasure = False
+    two_axis = True
     dataloaders = get_dataloaders("subreddits", batch_size=32, split=False, renew_cache=False)
-    embeddings, partisan_labels, subreddits = generate_embeddings(dataloaders['train'], path = "data/centerloss_sbert")
-    df =  pd.DataFrame({"embedding": list(embeddings), "subreddit": subreddits})
+    embeddings, partisan_labels, subreddits = generate_embeddings(dataloaders['train'], path = "data/centerloss_sbert_full")
+    
+    cf_svm = joblib.load("data/svm/svm_model.joblib")
+    labels = cf_svm.predict(embeddings)
+    
+    df =  pd.DataFrame({"embedding": list(embeddings), "subreddit": subreddits, "label": labels})
+    
+
+
     
     subreddit_centroids = df.groupby('subreddit')['embedding'].apply(
         lambda x: np.mean(np.vstack(x), axis=0)
     ).to_dict()
+    avg_labels = df.groupby('subreddit')['label'].apply(
+        lambda x: np.mean(x)
+    ).to_dict()
+
     print(subreddit_centroids.keys())
+
+    political_axis = -1*np.load("data/cached_data/political_axis.npy")
+    axis_norm = political_axis / np.linalg.norm(political_axis)
+    scores = {}
+    for sub, centroid in subreddit_centroids.items():
+        # Project the centroid onto the axis
+        # We normalize the axis so the scale is interpretable
+        score = np.dot(centroid, axis_norm)
+        scores[sub] = score
+
+
+    if two_axis:
+        plot_data = []
+        for sub in scores.keys():
+            plot_data.append({
+                'Subreddit': sub,
+                'Geometric_Score': scores[sub],          # X-Axis
+                'Pct_Republican': avg_labels[sub] * 100  # Y-Axis (Converted to %)
+            })
+
+        df_plot = pd.DataFrame(plot_data)
+
+        # --- 4. Generate the Plot ---
+        plt.figure(figsize=(14, 10))
+
+# Set a clean background style
+        sns.set_style("whitegrid")
+
+        # FIX 2: Add Color Scale mapped to Y-axis value
+        # palette='vlag' diverges from Blue (low values) to Red (high values)
+        sns.scatterplot(
+            data=df_plot,
+            x='Geometric_Score',
+            y='Pct_Republican',
+            hue='Pct_Republican',  # Map color to percentage
+            palette='vlag',        # Red-Blue diverging palette
+            s=250,                 # Large, visible dots
+            edgecolor='black',     # distinct borders
+            linewidth=1,
+            alpha=0.9,
+            legend=False           # Hide legend (color explains itself based on Y-axis)
+        )
+
+        # Add center reference lines
+        plt.axvline(0, color='#555555', linestyle='--', alpha=0.5)
+        plt.axhline(50, color='#555555', linestyle='--', alpha=0.5)
+
+        # FIX 3: Make Labels Readable with adjustText
+        texts = []
+        for i in range(df_plot.shape[0]):
+            # We create text objects but don't add them to the plot immediately
+            texts.append(plt.text(
+                df_plot.Geometric_Score[i],
+                df_plot.Pct_Republican[i],
+                df_plot.Subreddit[i],
+                fontsize=11,
+                fontweight='bold',
+                color='#333333' # Dark grey text is softer than pure black
+            ))
+
+        # This function iteratively moves the text objects to prevent overlap
+        # arrowprops adds nice little lines connecting text to the dot if it moved far
+        adjust_text(texts,
+                    arrowprops=dict(arrowstyle='-', color='grey', alpha=0.6),
+                    expand_points=(1.5, 1.5) # Push text slightly further from dots
+                )
+
+        # Final Formatting with corrected X-axis label
+        plt.title("Subreddit Alignment: Geometric Bias vs. Classifier Prediction", fontsize=18, pad=20)
+        plt.xlabel("Geometric Partisan Score (Projected on Axis)\n← Liberal  |  Conservative →", fontsize=14, labelpad=10)
+        plt.ylabel("Percentage of Texts Classified as Republican (%)", fontsize=14, labelpad=10)
+
+        # Set axis limits to make it look clean (adjust based on your actual data range)
+        plt.xlim(-2.2, 2.2)
+        plt.ylim(-5, 105)
+
+        plt.tight_layout()
+        plt.show()
+        exit()
     # 1. Define the poles
      # The "Right" Pole
 
@@ -73,13 +163,7 @@ if __name__ == "__main__":
         plt.show()
 
         exit()
-    political_axis = np.load("data/cached_data/political_axis.npy")
-    scores = {}
-    for sub, centroid in subreddit_centroids.items():
-        # Project the centroid onto the axis
-        # We normalize the axis so the scale is interpretable
-        score = dot(centroid, political_axis) / norm(political_axis)
-        scores[sub] = score
+
 
     # Convert to DataFrame for easy viewing
     
