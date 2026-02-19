@@ -29,8 +29,8 @@ def erase(embeddings, eraser=joblib.load("data/svm/linear_eraser.joblib")):
 
 
 if __name__ == "__main__":
-    train = False
-    find_K = False
+    train = False # Set to True to train the eraser, False to just load and use it
+    find_K = False  # Set to True to run the K search, False to just run with a fixed K (e.g., 6)
     if train:
         dataloaders = get_dataloaders("topic_data", batch_size=32, split=False, renew_cache=False)
         embeddings, partisan_labels, _ = generate_embeddings(dataloaders['train'], path = "data/centerloss_sbert_full")
@@ -70,9 +70,9 @@ if __name__ == "__main__":
             clustering = KMeans(n_clusters=k, random_state=42)
             labels = clustering.fit_predict(X_erased)
             
-            # 1. Inertia (Sum of squared distances to center) -> For Elbow Method
-            inertias.append(clustering.inertia_ if hasattr(clustering, "inertia_") else 0) # AgglomerativeClustering doesn't have inertia, so we set it to 0 or you can compute it manually    
-            # 2. Silhouette Score (How distinct are the clusters?) -> Maximize this
+          
+            inertias.append(clustering.inertia_ if hasattr(clustering, "inertia_") else 0)
+           
             score = silhouette_score(X_erased, labels)
             silhouettes.append(score)
             
@@ -102,21 +102,19 @@ if __name__ == "__main__":
 
     print(f"Clustering erased centroids into {K_CLUSTERS} semantic groups...")
 
-    # 2. Fit K-Means on the CLEANED (Erased) vectors
+ 
     clustering = AgglomerativeClustering(n_clusters=K_CLUSTERS, linkage='ward')
     semantic_labels = clustering.fit_predict(X_erased)
 
-    # 3. Visualization
-    # We use the same PCA coordinates from the previous step to keep the "map" consistent
-    # If you lost coords_erased, uncomment the line below:
+
     coords_erased = PCA(n_components=2).fit_transform(X_erased)
 
-    # Create a DataFrame for easier plotting with names
+   
     df_viz = pd.DataFrame({
         'x': coords_erased[:, 0],
         'y': coords_erased[:, 1],
         'cluster': semantic_labels.astype(str), # Convert to string for categorical coloring
-        'label': list(subreddit_centroids.keys()) , # Your list of topic names (e.g. "gun_control")
+        'label': list(subreddit_centroids.keys()) , #list of topic names (e.g. "gun_control")
         'Right_Leaning_Percentage': list(avg_labels.values()) # Percentage of Right-Leaning content in each topic
     })
 
@@ -133,8 +131,7 @@ if __name__ == "__main__":
         edgecolor='k'
     )
 
-    # 4. Annotate points to check the semantics
-    # We verify if the cluster makes sense (e.g., does Cluster 0 contain both Tax and Wage?)
+   
     for i in range(df_viz.shape[0]):
         plt.text(
             df_viz.x[i]+0.02, 
@@ -151,7 +148,7 @@ if __name__ == "__main__":
     plt.grid(True, alpha=0.3)
     plt.show()
 
-    # 5. Print the text content of clusters for your paper
+   
     print("\n--- Cluster Analysis ---")
     for k in range(K_CLUSTERS):
         cluster_topics = df_viz[df_viz['cluster'] == str(k)]['label'].tolist()

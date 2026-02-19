@@ -1,29 +1,12 @@
 from partisannet.data.datamodule import get_dataloaders
 from partisannet.models.get_embeddings import generate_embeddings
 from sklearn.svm import SVC
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, accuracy_score
-
 import joblib
 
 
 
 
-def svm_report(
-        embeddings_train,
-        labels_train,
-        labels_test,
-        embeddings_test,
-        clf_tot = SVC(kernel='linear', random_state=42)
-):
-    clf_tot.fit(embeddings_train, labels_train)
-    predictions_tot = clf_tot.predict(embeddings_test)
-
-    print("Classification Report")
-    print(classification_report(labels_test, predictions_tot))
-
-    accuracy_tot = accuracy_score(labels_test, predictions_tot)
-    print(f"Accuracy: {accuracy_tot:.4f}")
 
 def  svm_train(
         embeddings,

@@ -1,27 +1,11 @@
 from datasets import load_dataset, Dataset
-from datasets import ClassLabel
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer
-import kagglehub
-from kagglehub import KaggleDatasetAdapter
 import os
 from datasets import load_from_disk
 from pathlib import Path
 
 
-def combine_text_batched(dataset: Dataset) -> dict[str, list[str]]:
-    """Combines 'Title' and 'Text' columns into a single 'text' column.
-    Args:
-        dataset: A dataset object containing 'Title' and 'Text' columns.
-    Returns:
-        dict[str, list[str]]: A dictionary with new 'text' column for mapping.
-    """
-    combined_texts = []
-    for title, body in zip(dataset["Title"], dataset["Text"]):
-        parts = [title, body]
-        clean_row = " ".join([str(p) for p in parts if p])
-        combined_texts.append(clean_row)
-    return {"text": combined_texts}
 
 def load_datasets(dataset_name: str) -> Dataset:
     """Load dataset based on the given name.
@@ -30,28 +14,8 @@ def load_datasets(dataset_name: str) -> Dataset:
     Returns:
         ds (Dataset): The loaded dataset.
     """
-    if dataset_name == "mbib-base":
-        ds = load_dataset("mediabiasgroup/mbib-base", split="political_bias")
-    elif dataset_name == "LibCon":
-        file_path = "file_name.csv"
-        ds = kagglehub.dataset_load(
-            KaggleDatasetAdapter.HUGGING_FACE,
-            "neelgajare/liberals-vs-conservatives-on-reddit-13000-posts",
-            file_path,
-            pandas_kwargs={"encoding": "latin1", "compression": "zip"}
-        )
-        
-        ds = ds.rename_column("Political Lean", "label")
-        new_features = ds.features.copy()
-        new_features["label"] = ClassLabel(names=["Liberal", "Conservative"]) # 0: Liberal, 1: Conservative
-        ds = ds.cast(new_features)
-        ds = ds.map(combine_text_batched, batched=True, num_proc=4)
-        num = ds["label"].count(1)
-        indices_to_drop = [i for i, label in enumerate(ds["label"]) if label == 0][num:]
-        indices_to_keep = [i for i in range(len(ds)) if i not in indices_to_drop]
-        ds = ds.select(indices_to_keep)
-        ds = ds.select_columns(["self_text", "subreddit"])
-    elif dataset_name == "DemRep":
+    
+    if dataset_name == "DemRep":
         script_dir = Path(__file__).resolve().parent
         project_root = script_dir.parent.parent
         csv_path = project_root / "data" / "Training_data" / "training_data.csv"
@@ -79,7 +43,7 @@ def load_datasets(dataset_name: str) -> Dataset:
 def get_datasets(dataset: str,) -> dict[str, DataLoader]:
     """Load dataset and return dataloaders for training, validation, and testing.
     Args:
-        dataset (str): Name of the dataset to load. Supported: "mbib-base", "LibCon"
+        dataset (str): Name of the dataset to load. Supported: "DemRep", "testdata", "subreddits", "topic_data"
         batch_size (int): Batch size for the dataloaders.
     Returns:
         dict[str, DataLoader]: A dictionary containing 'train', 'val', and 'test' dataloaders.

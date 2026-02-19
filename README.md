@@ -11,13 +11,11 @@ This repository serves as the official replication package for our paper, *"Part
 ## 1. Repository Structure
 
 ```text
-partisan_net_replication/
-├── data/
-│   ├── raw/                 # Scripts/instructions for full Kaggle datasets
-│   └── processed/           # Contains the 50k comment subset used for experiments
-├── models/                  # Pre-trained PartisanNet weights and svm_model.joblib
-├── notebooks/               # Jupyter notebooks for reproducing paper figures/tables
-├── src/                     # Source code for model training and utilities
+Political-Ideology-Analysis/
+├── data/                    # Contains the csv files of the subsets of PartisanNet Dataset and all the cached models
+├── partisannet/             
+│   ├── data/                # Code for loading dataloaders and topic models
+│   └── models/              # The core SentenceTransformer-based model used in this paper
 ├── results/                 # Output folder for generated plots and tables
 ├── requirements.txt         # Python dependencies
 └── README.md                # This file
@@ -47,31 +45,47 @@ pip install -r requirements.txt
 
 Because the full datasets are too large to host on GitHub, we have split the data access into two parts:
 
-* **Experiment Subset (Ready to Run):** The exact subset of 50,000 comments across 30 subreddits used for our primary experiments (Sections 5.2, 5.3, and 5.4) is provided in `data/processed/experiment_subset.csv`. **You can run the replication notebooks immediately using this file.**
+* **Experiment Subset (Ready to Run):** The exact subset of 50,000 comments across 30 subreddits used for our primary experiments (Sections 5.2, 5.3, and 5.4) is provided in `data/Training_data/*`. **You can run the replication code immediately using this file.**
 * **Full Datasets (Optional):** The full "Public Opinion on Republicans (Rep-Ops)" and "Public Opinion on Democrats (Dem-Ops)" datasets can be downloaded from Kaggle (Asaniczka, 2024a; Asaniczka, 2024b).
 
 ## 4. Replication Guide
 
-To reproduce the findings, tables, and figures from the paper, run the Jupyter Notebooks in the `notebooks/` directory in the following order:
+To reproduce the findings, tables, and figures from the paper, run the files in the following order:
 
-### `01_train_partisannet.ipynb`
+### `train.py`
 
 * **Purpose:** Demonstrates the contrastive fine-tuning process of the `all-MiniLM-L6-v2` backbone.
-* **Note:** Full training takes approximately 50 epochs on an RTX 4060ti. For convenience, we have provided the pre-trained weights in the `/models/` directory so you can skip training and proceed directly to the analysis.
+* **Note:** Full training takes approximately 50 epochs on an RTX 4060ti. For convenience, we have provided the pre-trained weights in the `data/centerloss_sbert_full/` directory so you can skip training and proceed directly to the analysis.
 
-### `02_topic_modeling_and_erasure.ipynb`
+### `Augment_Model.py`
+
+* **Purpose:** Sets up the centerloss_sbert model needed for extracting the embeddings.
+* **Output:** Saves an the trained model in data/centerloss_sbert_full
+
+### `svm_train.py`
+
+* **Purpose:** Trains the SVM required for the applications
+* **Output:** Saves an SVM in data/svm/svm_model.joblib
+
+### `performance.py`
+
+* **Paper Link:** Corresponds to **Section 5.1** and **Table 1**.
+* **Purpose:** Model performance comparison
+* **Output:** Outputs metrics of 5 different models and generates Results/model_comparison_results.json
+
+### `topic_cluster.py`
 
 * **Paper Link:** Corresponds to **Section 5.2** and **Table 2**.
-* **Action:** Runs BERTopic to extract 81 topic centroids. Applies LEACE (Linear Estimation and Concept Erasure) to project these centroids onto the null space of the partisan concept.
+* **Action:** Runs BERTopic to extract topic centroids. Applies LEACE (Linear Estimation and Concept Erasure) to project these centroids onto the null space of the partisan concept.
 * **Output:** Generates the K-Means (k=20) clustering comparison before and after erasure, demonstrating the semantic repair of the "Democratic Party" split and the dissolution of the "Republican Composite".
 
-### `03_subreddit_alignment.ipynb`
+### `subreddit_plot.py`
 
 * **Paper Link:** Corresponds to **Section 5.3** and **Figure 1**.
 * **Action:** Calculates the "Subreddit Centroids", applies LEACE to isolate the 1D partisan effect vector, and plots it against the percentage of texts classified as Republican by our SVM.
-* **Output:** Generates `results/figure_1_subreddit_alignment.png`.
+* **Output:** Generates `Results/subreddit_bias_plot.pdf`.
 
-### `04_community_realignment.ipynb`
+### `subreddit_cluster.py`
 
 * **Paper Link:** Corresponds to **Section 5.4** and **Table 3**.
 * **Action:** Clusters the subreddit centroids (k=6) before and after applying LEACE.

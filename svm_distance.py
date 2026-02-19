@@ -47,7 +47,7 @@ def main():
     plt.xlabel("Distance from Hyperplane (Left < 0 < Right)")
     plt.ylabel("Count")
     plt.legend()
-    plt.savefig("svm_distance_histogram.png")
+    plt.savefig("Results/svm_distance_histogram.png")
     plt.show()
 
     # --- PLOT 2: UMAP COLORED BY DISTANCE ---
@@ -68,7 +68,7 @@ def main():
     )
     plt.colorbar(scatter, label="SVM Distance (Blue=Left, Red=Right)")
     plt.title("UMAP Colored by SVM Distance (The Linear Direction)")
-    plt.savefig("svm_distance_umap.png")
+    plt.savefig("Results/svm_distance_umap.png")
     plt.show()
 
 if __name__ == "__main__":
