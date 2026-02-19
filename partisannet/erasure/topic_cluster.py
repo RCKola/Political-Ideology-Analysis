@@ -3,7 +3,7 @@ import torch
 from concept_erasure import LeaceEraser
 from partisannet.data.datamodule import get_dataloaders
 from partisannet.data.topicmodule import load_topic_model
-from sklearn.cluster import AgglomerativeClustering, KMeans
+from sklearn.cluster import AgglomerativeClustering
 import pandas as pd
 import matplotlib.pyplot as plt
 import joblib
@@ -38,10 +38,11 @@ if __name__ == "__main__":
         create_eraser(embeddings)
 
     topic_model, X_centroids, topic_labels, topic_percentages = load_topic_model("topic_data", embedding_model="data/centerloss_sbert_full", renew_cache=False, num_topics=500, cluster_in_k=None)
+    print(X_centroids.shape)
     #dataloaders = get_dataloaders("topic_data", batch_size=32, split=False, renew_cache=False)
     #embeddings, partisan_labels, _ = generate_embeddings(dataloaders['train'], path = "data/centerloss_sbert")
 
-    X_erased = normalize(X_centroids,norm='l2')
+    X_erased = normalize(erase(X_centroids),norm='l2')
     pca = PCA(n_components=50)
     X_reduced = pca.fit_transform(X_erased)
     
@@ -86,7 +87,7 @@ if __name__ == "__main__":
         plt.show()
         exit()
 
-    K_CLUSTERS = 20
+    K_CLUSTERS = 30
 
     print(f"Clustering erased centroids into {K_CLUSTERS} semantic groups...")
 

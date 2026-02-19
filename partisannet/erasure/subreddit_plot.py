@@ -12,11 +12,13 @@ import seaborn as sns
 from adjustText import adjust_text
 import joblib
 import torch
+from sklearn.preprocessing import normalize
+from sklearn.decomposition import PCA
 
 if __name__ == "__main__":
     
-    linerasure = False
-    two_axis = True
+    linerasure = True
+    two_axis = False
     dataloaders = get_dataloaders("subreddits", batch_size=32, split=False, renew_cache=False)
     embeddings, partisan_labels, subreddits = generate_embeddings(dataloaders['train'], path = "data/centerloss_sbert_full")
     
@@ -36,6 +38,8 @@ if __name__ == "__main__":
     ).to_dict()
 
     print(subreddit_centroids.keys())
+
+
 
     political_axis = -1*np.load("data/cached_data/political_axis.npy")
     axis_norm = political_axis / np.linalg.norm(political_axis)
@@ -121,46 +125,53 @@ if __name__ == "__main__":
     # 2. Construct the Axis Vector
     # (Dem - Con) creates a vector pointing towards the Democrat side
     if linerasure:
+        eraser = joblib.load("data/svm/linear_eraser.joblib")
         X_centroids = np.vstack(list(subreddit_centroids.values()))
-        svm = joblib.load("data/svm/svm_model.joblib")
-        labels = svm.predict(X_centroids)
-        eraser = LeaceEraser.fit(torch.tensor(X_centroids), torch.tensor(labels))
+        X_concept = X_centroids - eraser(torch.tensor(X_centroids)).numpy() 
+        
+        pca_1d = PCA(n_components=1)
+        concept_scalar = -1 * pca_1d.fit_transform(X_concept).flatten()
 
-        X_erased = eraser(torch.tensor(X_centroids)).numpy()
-        from sklearn.decomposition import PCA
+        # 2. Create a DataFrame for easy plotting
+        # We align the scalar value with the subreddit name and its label
+        df_plot = pd.DataFrame({
+            "Subreddit": list(subreddit_centroids.keys()),
+            "Political_Score": concept_scalar,
+            "% Right": list(avg_labels.values())  # Assuming this is 0 (Left) to 1 (Right)
+        })
 
-        # Fit PCA on the ORIGINAL to define the axes, then transform both
-        # This keeps the "view" consistent so you can see them move
-        pca = PCA(n_components=2)
-        coords_orig = pca.fit_transform(X_centroids)
-        coords_erased = pca.transform(X_erased) # Use same axes!
+        # 3. Sort by the score to see the spectrum (Left <-> Right)
+        df_plot = df_plot.sort_values("Political_Score")
 
-        # Visualization
-        fig, axes = plt.subplots(1, 2, figsize=(16, 8))
+        # --- VISUALIZATION ---
+        
+        sns.set_context("paper", font_scale=1.2)
+        plt.figure(figsize=(6, 10))
 
-        # Plot A: Original Centroids
-        # Color by their position on the political axis (X-axis usually captures variance)
-        sns.scatterplot(
-            x=coords_orig[:, 0], y=coords_orig[:, 1], 
-            s=100, hue=labels, palette="coolwarm", legend=True, ax=axes[0]
+        # Plot A: The Spectrum (Sorted Bar Chart)
+        # This shows exactly where each subreddit falls on the "Politics Line"
+        sns.barplot(
+            data=df_plot, 
+            y="Subreddit", 
+            x="Political_Score", 
+            hue="% Right", 
+            palette="coolwarm", # Blue (Left) to Red (Right) usually
+            dodge=False,        # Makes bars align with x-axis ticks
+            orient = "h"
         )
-        # Label a few important topics
-    
+        plt.title("") # Remove title (let LaTeX caption handle it)
+        plt.ylabel("") # Remove "Subreddit" label (it's obvious)
+        plt.xlabel("Magnitude of Partisan Vector")
+        plt.legend(title="% Right-Leaning", loc="upper right") # Move legend out of the way
 
-        axes[0].set_title("Original Topic Centroids (Politicized)")
-        axes[0].set_xlabel("Principal Component 1 (Likely Political)")
-
-        # Plot B: Erased Centroids
-        sns.scatterplot(
-            x=coords_erased[:, 0], y=coords_erased[:, 1], 
-            s=100, hue=coords_orig[:, 0], palette="coolwarm", legend=False, ax=axes[1] # Grey because politics is gone!
-        )
-
-        axes[1].set_title("After Linear Erasure (Pure Semantics)")
-        axes[1].set_xlabel("Principal Component 1 (Politics Removed)")
+        # Plot B: 1D Distribution (Strip Plot)
+        # This shows the density/separation of the two groups
+        
 
         plt.tight_layout()
+        plt.savefig("Plots/subreddit_bias_plot.pdf", format="pdf", bbox_inches='tight')
         plt.show()
+    
 
         exit()
 
