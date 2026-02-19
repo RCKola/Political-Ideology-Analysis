@@ -18,7 +18,7 @@ MODELS_LIST = [
     "all-MiniLM-L6-v2",           # 22M params
 ]
 
-def eval_models_clf(output_file="data/model_comparison_results.json"):
+def eval_models_clf(output_file="Results/model_comparison_results.json"):
     parser = get_parser()
     args = parser.parse_args([])
 

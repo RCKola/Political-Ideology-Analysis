@@ -1,0 +1,407 @@
+[
+    {
+        "topic_name":"0_trump_donald_donald trump_just",
+        "original_cluster":17,
+        "new_cluster":3
+    },
+    {
+        "topic_name":"1_republicans_republican_gop_democrats",
+        "original_cluster":10,
+        "new_cluster":17
+    },
+    {
+        "topic_name":"2_biden_trump_just_president",
+        "original_cluster":4,
+        "new_cluster":16
+    },
+    {
+        "topic_name":"3_cmv_people_gt_think",
+        "original_cluster":1,
+        "new_cluster":9
+    },
+    {
+        "topic_name":"4_daily discussion_discussion thread_daily_discussion",
+        "original_cluster":11,
+        "new_cluster":2
+    },
+    {
+        "topic_name":"5_left_right_wing_people",
+        "original_cluster":9,
+        "new_cluster":5
+    },
+    {
+        "topic_name":"6_reddit_redditors_people_trump",
+        "original_cluster":19,
+        "new_cluster":10
+    },
+    {
+        "topic_name":"7_democrats_democrat_party_people",
+        "original_cluster":5,
+        "new_cluster":11
+    },
+    {
+        "topic_name":"8_trump_people_says_president",
+        "original_cluster":1,
+        "new_cluster":12
+    },
+    {
+        "topic_name":"9_maga_trump_people_just",
+        "original_cluster":17,
+        "new_cluster":9
+    },
+    {
+        "topic_name":"10_kamala_harris_kamala harris_debate",
+        "original_cluster":2,
+        "new_cluster":8
+    },
+    {
+        "topic_name":"11_illegal_border_immigration_immigrants",
+        "original_cluster":1,
+        "new_cluster":14
+    },
+    {
+        "topic_name":"12_tariffs_tax_trump_government",
+        "original_cluster":1,
+        "new_cluster":0
+    },
+    {
+        "topic_name":"13_rfk_rfk jr_jr_vivek",
+        "original_cluster":13,
+        "new_cluster":6
+    },
+    {
+        "topic_name":"14_liberals_liberal_people_right",
+        "original_cluster":9,
+        "new_cluster":13
+    },
+    {
+        "topic_name":"15_leftist_leftists_people_trump",
+        "original_cluster":9,
+        "new_cluster":5
+    },
+    {
+        "topic_name":"16_news_trump_fox_cnn",
+        "original_cluster":1,
+        "new_cluster":19
+    },
+    {
+        "topic_name":"17_sub_subreddit_subs_trump",
+        "original_cluster":19,
+        "new_cluster":10
+    },
+    {
+        "topic_name":"18_dems_dem_trump_don",
+        "original_cluster":5,
+        "new_cluster":11
+    },
+    {
+        "topic_name":"19_libertarian_libertarians_libertarianism_party",
+        "original_cluster":9,
+        "new_cluster":13
+    },
+    {
+        "topic_name":"20_biden_president_bernie_like",
+        "original_cluster":10,
+        "new_cluster":15
+    },
+    {
+        "topic_name":"21_israel_hamas_gaza_israeli",
+        "original_cluster":1,
+        "new_cluster":14
+    },
+    {
+        "topic_name":"22_musk_elon_elon musk_trump",
+        "original_cluster":8,
+        "new_cluster":4
+    },
+    {
+        "topic_name":"23_judge_court_case_trump",
+        "original_cluster":16,
+        "new_cluster":0
+    },
+    {
+        "topic_name":"24_joe_joe biden_biden_war",
+        "original_cluster":4,
+        "new_cluster":16
+    },
+    {
+        "topic_name":"25_hunter_hunter biden_biden_son",
+        "original_cluster":2,
+        "new_cluster":7
+    },
+    {
+        "topic_name":"26_boebert_lauren_lauren boebert_djt",
+        "original_cluster":3,
+        "new_cluster":4
+    },
+    {
+        "topic_name":"27_desantis_florida_ron_ron desantis",
+        "original_cluster":12,
+        "new_cluster":1
+    },
+    {
+        "topic_name":"28_aoc_sanders_bernie_backers mean",
+        "original_cluster":4,
+        "new_cluster":1
+    },
+    {
+        "topic_name":"29_right_right wing_wing_far right",
+        "original_cluster":10,
+        "new_cluster":15
+    },
+    {
+        "topic_name":"30_dnc_bernie_sanders_party",
+        "original_cluster":2,
+        "new_cluster":8
+    },
+    {
+        "topic_name":"31_pics_politics_sub_just",
+        "original_cluster":19,
+        "new_cluster":10
+    },
+    {
+        "topic_name":"32_shooter_assassination_gun_trump",
+        "original_cluster":16,
+        "new_cluster":12
+    },
+    {
+        "topic_name":"33_iran_israel_war_nuclear",
+        "original_cluster":1,
+        "new_cluster":14
+    },
+    {
+        "topic_name":"34_amp_redd_width_webp amp",
+        "original_cluster":10,
+        "new_cluster":15
+    },
+    {
+        "topic_name":"35_epstein_files_epstein files_release",
+        "original_cluster":16,
+        "new_cluster":0
+    },
+    {
+        "topic_name":"36_voters_vote_voting_harris",
+        "original_cluster":15,
+        "new_cluster":15
+    },
+    {
+        "topic_name":"37_breaking_trump_breaking trump_maxine",
+        "original_cluster":1,
+        "new_cluster":0
+    },
+    {
+        "topic_name":"38_think months_months unfolded_unfolded differently_differently united",
+        "original_cluster":17,
+        "new_cluster":3
+    },
+    {
+        "topic_name":"39_conservatives_conservative_people_don",
+        "original_cluster":9,
+        "new_cluster":13
+    },
+    {
+        "topic_name":"40_ukraine_russia_putin_war",
+        "original_cluster":1,
+        "new_cluster":14
+    },
+    {
+        "topic_name":"41_hillary_hillary clinton_clinton_clinton piece",
+        "original_cluster":5,
+        "new_cluster":3
+    },
+    {
+        "topic_name":"42_neoliberal_neoliberalism_neo_neoliberals",
+        "original_cluster":1,
+        "new_cluster":18
+    },
+    {
+        "topic_name":"43_rogan_joe rogan_joe_rogan interview",
+        "original_cluster":1,
+        "new_cluster":19
+    },
+    {
+        "topic_name":"44_fbi_conspiracy_trump_aliens",
+        "original_cluster":1,
+        "new_cluster":0
+    },
+    {
+        "topic_name":"45_covid_covid 19_pandemic_vaccine",
+        "original_cluster":18,
+        "new_cluster":7
+    },
+    {
+        "topic_name":"46_tonight_carney_mark carney_carney liberals",
+        "original_cluster":14,
+        "new_cluster":2
+    },
+    {
+        "topic_name":"47_haley_nikki_nikki haley_trump",
+        "original_cluster":1,
+        "new_cluster":0
+    },
+    {
+        "topic_name":"48_elon_autistic_think elon_musk",
+        "original_cluster":8,
+        "new_cluster":4
+    },
+    {
+        "topic_name":"49_libs_delusional libs_libs genuinely_hope delusional",
+        "original_cluster":9,
+        "new_cluster":13
+    },
+    {
+        "topic_name":"50_mamdani_zohran_zohran mamdani_nyc",
+        "original_cluster":1,
+        "new_cluster":8
+    },
+    {
+        "topic_name":"51_kirk_charlie_charlie kirk_political violence",
+        "original_cluster":0,
+        "new_cluster":6
+    },
+    {
+        "topic_name":"52_democrats_democratic_party_democratic party",
+        "original_cluster":6,
+        "new_cluster":15
+    },
+    {
+        "topic_name":"53_pandemic_did pandemic_ruin realise_pandemic ruin",
+        "original_cluster":18,
+        "new_cluster":7
+    },
+    {
+        "topic_name":"54_omar_ilhan_ilhan omar_rep ilhan",
+        "original_cluster":1,
+        "new_cluster":1
+    },
+    {
+        "topic_name":"55_war city_state american_say state_threatening war",
+        "original_cluster":17,
+        "new_cluster":17
+    },
+    {
+        "topic_name":"56_pelosi_nancy_nancy pelosi_pelosi trump",
+        "original_cluster":5,
+        "new_cluster":3
+    },
+    {
+        "topic_name":"57_gabbard_tulsi_tulsi gabbard_dni",
+        "original_cluster":1,
+        "new_cluster":1
+    },
+    {
+        "topic_name":"58_kamala_harris_kamala harris_walz",
+        "original_cluster":10,
+        "new_cluster":15
+    },
+    {
+        "topic_name":"59_bernie_sanders_bernie sanders_progressive",
+        "original_cluster":6,
+        "new_cluster":8
+    },
+    {
+        "topic_name":"60_walz_tim walz_tim_kamala",
+        "original_cluster":3,
+        "new_cluster":18
+    },
+    {
+        "topic_name":"61_secret service_secret_service_roof",
+        "original_cluster":16,
+        "new_cluster":0
+    },
+    {
+        "topic_name":"62_movie_hollywood_movies_actor",
+        "original_cluster":1,
+        "new_cluster":19
+    },
+    {
+        "topic_name":"63_medicaid social_cut thoughts_security cut_warns medicare",
+        "original_cluster":15,
+        "new_cluster":5
+    },
+    {
+        "topic_name":"64_gaetz_matt_matt gaetz_kevin",
+        "original_cluster":7,
+        "new_cluster":2
+    },
+    {
+        "topic_name":"65_california_state_arizona_newsom",
+        "original_cluster":0,
+        "new_cluster":17
+    },
+    {
+        "topic_name":"66_election_harris_voting_vote",
+        "original_cluster":15,
+        "new_cluster":15
+    },
+    {
+        "topic_name":"67_antifa_designating_violent extremist_designating antifa",
+        "original_cluster":1,
+        "new_cluster":7
+    },
+    {
+        "topic_name":"68_federal_government_federal judge_administration",
+        "original_cluster":1,
+        "new_cluster":0
+    },
+    {
+        "topic_name":"69_facebook_zuckerberg_nabj_fb",
+        "original_cluster":1,
+        "new_cluster":19
+    },
+    {
+        "topic_name":"70_democrats_party_democratic_people",
+        "original_cluster":6,
+        "new_cluster":11
+    },
+    {
+        "topic_name":"71_shooter_realistically happened_think realistically_killed shooter",
+        "original_cluster":10,
+        "new_cluster":12
+    },
+    {
+        "topic_name":"72_doj_epstein_feel doj_ties trump",
+        "original_cluster":7,
+        "new_cluster":2
+    },
+    {
+        "topic_name":"73_shutdowns_government shutdowns_senator john_john kennedy",
+        "original_cluster":0,
+        "new_cluster":6
+    },
+    {
+        "topic_name":"74_popular 2020_pandemic pretty_pretty dead_2020",
+        "original_cluster":11,
+        "new_cluster":2
+    },
+    {
+        "topic_name":"75_massie_thomas massie_thomas_gallrein",
+        "original_cluster":3,
+        "new_cluster":6
+    },
+    {
+        "topic_name":"76_scotus ruling_favor despite_despite favoring_believe scotus",
+        "original_cluster":6,
+        "new_cluster":17
+    },
+    {
+        "topic_name":"77_schumer_chuck_chuck schumer_schumer mia",
+        "original_cluster":2,
+        "new_cluster":9
+    },
+    {
+        "topic_name":"78_bernie_sanders_bernie sanders_sanders gets",
+        "original_cluster":2,
+        "new_cluster":8
+    },
+    {
+        "topic_name":"79_parade_parade today_parade preparation_preparation like",
+        "original_cluster":7,
+        "new_cluster":12
+    },
+    {
+        "topic_name":"80_greene_marjorie_marjorie taylor_taylor greene",
+        "original_cluster":2,
+        "new_cluster":7
+    }
+]
