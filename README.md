@@ -1,46 +1,78 @@
-# Detecting Partisan Language in Reddit Communities
+# PartisanNet: Untangling Political Ideology Representations in Online Communities
 
-## Motivation: 
-This project will address two primary research questions:
+**Authors:** Thibault Cangemi & Zhiang Chen  
+**Institution:** ETH Zürich  
+**Course:** Supervised Research (Law, Economics, and Data Science)
 
-### Partisan Language Detection (RQ1)
-Can we detect partisan language in Reddit based on posts and comments? The goal is to train a model to classify reddit comments or posts into left-leaning, neutral or right-leaning speech.
+## Overview
 
-### Latent Space Analysis (RQ2)
-Can the embeddings from the model identified in RQ1 be used to construct a latent embedding space? The goal of this space is twofold: (a) to successfully enable clustering of subreddits in a primarily unsupervised fashion, and (b) to use this space to analyze political lean of seemingly neutral communities by measuring their position relative to the established partisan poles.
+This repository serves as the official replication package for our paper, *"PartisanNet: Untangling Political Ideology Representations in Online Communities."* It contains all necessary code, data subsets, and instructions to reproduce the contrastive fine-tuning, LEACE concept erasure, and clustering results discussed in the text.
 
-## Background and Related Work: 
-### RiCo (Reddit Ideological Communities)
-The paper focused on classifying the ideological orientation of news articles using data from subreddits. By collecting and labeling news articles posted in “flagship” partisan subreddits, such as r/liberal and r/conservative, they found that a SVM model outperformed various Transformer models in accuracy.
+## 1. Repository Structure
 
-### MBIB (Media Bias Identification Benchmark)
-The paper introduces a unifying benchmark that groups different types of media bias, e.g. gender, political, etc., under a common framework to test detection techniques. They evaluated MBIB using various Transformer models, and they found that there is no single model which outperforms all the others for all biases simultaneously.
+```text
+partisan_net_replication/
+├── data/
+│   ├── raw/                 # Scripts/instructions for full Kaggle datasets
+│   └── processed/           # Contains the 50k comment subset used for experiments
+├── models/                  # Pre-trained PartisanNet weights and svm_model.joblib
+├── notebooks/               # Jupyter notebooks for reproducing paper figures/tables
+├── src/                     # Source code for model training and utilities
+├── results/                 # Output folder for generated plots and tables
+├── requirements.txt         # Python dependencies
+└── README.md                # This file
+```
 
-### S-BERT (Sentence-BERT)
-This paper introduces S-BERT, a modification of BERT that uses siamese and triplet network structures to derive semantically meaningful embeddings. While BERT struggles for tasks like semantic similarity search and clustering, S-BERT drastically speeds up such tasks, while maintaining similar accuracy to BERT. 
+## 2. Environment Setup
 
-## Dataset: 
-The labeled training corpus will be a composite of two high-quality, documented sources.
+To ensure reproducibility, please create a fresh virtual environment and install the required dependencies.
 
-Corpus 1 (Primary): The "Liberals vs Conservatives on Reddit [13000 posts]" dataset from Kaggle. This dataset consists of posts from partisan subreddits labeled either by “liberal”/”left” and “conservative”/”right”. For each post we are also given the amount of upvotes a post has, which can be used to quantify how much traction a post has obtained.
+```bash
+# Clone the repository
+git clone [https://github.com/RCKola/Political-Ideology-Analysis](https://github.com/RCKola/Political-Ideology-Analysis)
+cd PartisanNet
 
-Corpus 2 (Secondary): The “mbib-base” dataset on Hugging Face. This dataset is a collection of 22 datasets used in bias-related publications. The datasets were manually filtered and assigned to the nine pre-defined MBIB tasks (e.g. Hate Speech, gender bias). Finally, the datasets were binarized such that each entry is either “biased” or “unbiased”.
+# Create and activate a virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows, use: venv\Scripts\activate
 
-We will use corpus 1 for RQ1 to train our model. However, as this only contains binary labels, we will complement this with Corpus 2, filtered for political bias, to be able to detect unbiased comments. The difficulty will be in creating a balanced dataset. There are multiple approaches we will try, for example using Corpus 1 to label the biased text in Corpus 2 to either “left” or “right”. 
+# Install dependencies
+pip install -r requirements.txt
 
-## Methods:
-After extracting and processing the relevant datasets, we will fine tune an S-BERT model to output embeddings for sentences / phrases, which is then fed into different MLP heads for a range of tasks including partisan language detection (RQ1). We claim that a specific loss formulation for this task leads to a unified political ideology latent representation that can be used downstream for community clustering (RQ2). This formulation could be inspired by recent advances in representation learning.
+```
 
-For RQ1 the model predictions will be evaluated on a hold out dataset on classification metrics such as accuracy, precision etc. While for RQ2 we will cluster the embeddings with HDBScan based on posts / comments from reddit communities. The latent space will then be analyzed on clustering metrics such as adjusted rand index, normalized mutual information, average silhouette width, graph connectivity etc. 
+*(Key dependencies include `torch`, `sentence-transformers`, `bertopic`, `concept-erasure`, and `scikit-learn`.)*
 
-We will use a range of language modelling and traditional baselines for RQ1, namely a subset of the following methods: NaiveBayes, SVM, LGBM, DistilBERT, RoBERTa, GPT2, ULMfit, LongFormer, ConvBert. For RQ2 we will compare our embeddings against Word2Vec, TF-IDF and embeddings output from transformer models (see above). We will also visualize our results with dimensionality reduction methods like UMAP, t-SNE, PCA etc. and sample phrases or word clouds.
+## 3. Data Access
 
-## Tables/Figures:
-- Results tables from RQ1: classification metrics
-- Results tables from RQ2: cluster metrics
-- UMAP of clustered embeddings
-- Word cloud from embeddings
+Because the full datasets are too large to host on GitHub, we have split the data access into two parts:
 
-## Timeline:
-We will follow the timeline given in the course syllabus.
+* **Experiment Subset (Ready to Run):** The exact subset of 50,000 comments across 30 subreddits used for our primary experiments (Sections 5.2, 5.3, and 5.4) is provided in `data/processed/experiment_subset.csv`. **You can run the replication notebooks immediately using this file.**
+* **Full Datasets (Optional):** The full "Public Opinion on Republicans (Rep-Ops)" and "Public Opinion on Democrats (Dem-Ops)" datasets can be downloaded from Kaggle (Asaniczka, 2024a; Asaniczka, 2024b).
 
+## 4. Replication Guide
+
+To reproduce the findings, tables, and figures from the paper, run the Jupyter Notebooks in the `notebooks/` directory in the following order:
+
+### `01_train_partisannet.ipynb`
+
+* **Purpose:** Demonstrates the contrastive fine-tuning process of the `all-MiniLM-L6-v2` backbone.
+* **Note:** Full training takes approximately 50 epochs on an RTX 4060ti. For convenience, we have provided the pre-trained weights in the `/models/` directory so you can skip training and proceed directly to the analysis.
+
+### `02_topic_modeling_and_erasure.ipynb`
+
+* **Paper Link:** Corresponds to **Section 5.2** and **Table 2**.
+* **Action:** Runs BERTopic to extract 81 topic centroids. Applies LEACE (Linear Estimation and Concept Erasure) to project these centroids onto the null space of the partisan concept.
+* **Output:** Generates the K-Means (k=20) clustering comparison before and after erasure, demonstrating the semantic repair of the "Democratic Party" split and the dissolution of the "Republican Composite".
+
+### `03_subreddit_alignment.ipynb`
+
+* **Paper Link:** Corresponds to **Section 5.3** and **Figure 1**.
+* **Action:** Calculates the "Subreddit Centroids", applies LEACE to isolate the 1D partisan effect vector, and plots it against the percentage of texts classified as Republican by our SVM.
+* **Output:** Generates `results/figure_1_subreddit_alignment.png`.
+
+### `04_community_realignment.ipynb`
+
+* **Paper Link:** Corresponds to **Section 5.4** and **Table 3**.
+* **Action:** Clusters the subreddit centroids (k=6) before and after applying LEACE.
+* **Output:** Generates the data for Table 3, revealing the "Political Discussion Merge" and the "Entity Focus Trap" (e.g., `r/democrats` migrating to the right-wing cluster due to shared entity focus).
