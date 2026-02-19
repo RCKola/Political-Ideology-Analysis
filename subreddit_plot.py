@@ -10,9 +10,7 @@ import torch
 from sklearn.decomposition import PCA
 
 if __name__ == "__main__":
-    
-    linerasure = True
-    two_axis = False
+
     dataloaders = get_dataloaders("subreddits", batch_size=32, split=False, renew_cache=False)
     embeddings, partisan_labels, subreddits = generate_embeddings(dataloaders['train'], path = "data/centerloss_sbert_full")
     
@@ -20,9 +18,6 @@ if __name__ == "__main__":
     labels = cf_svm.predict(embeddings)
     
     df =  pd.DataFrame({"embedding": list(embeddings), "subreddit": subreddits, "label": labels})
-    
-
-
     
     subreddit_centroids = df.groupby('subreddit')['embedding'].apply(
         lambda x: np.mean(np.vstack(x), axis=0)
@@ -38,7 +33,7 @@ if __name__ == "__main__":
     X_concept = X_centroids - eraser(torch.tensor(X_centroids)).numpy() 
     
     pca_1d = PCA(n_components=1)
-    concept_scalar = -1 * pca_1d.fit_transform(X_concept).flatten()
+    concept_scalar = -1 * pca_1d.fit_transform(X_concept).flatten() # Negative sign to flip the direction so that higher values correspond to more right-leaning (based on the SVM's orientation)
 
     df_plot = pd.DataFrame({
         "Subreddit": list(subreddit_centroids.keys()),
