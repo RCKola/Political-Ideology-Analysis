@@ -213,6 +213,7 @@ __marimo__/
 *.pt
 
 data/cached_data/*
+!data/cached_data/cached_trained_topic_model_topic_data/
 data/outputs/*
 data/fine_tuned_sbert_old/*
 
