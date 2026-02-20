@@ -5,9 +5,6 @@ from sklearn.metrics import classification_report, accuracy_score
 import joblib
 
 
-
-
-
 def  svm_train(
         embeddings,
         labels
@@ -18,7 +15,6 @@ def  svm_train(
     joblib.dump(clf, "data/svm/svm_model.joblib")
    
 
-
 if __name__ == "__main__":
    
     train = True
@@ -28,11 +24,7 @@ if __name__ == "__main__":
         embeddings, partisan_labels, _ = generate_embeddings(dataloaders['train'], path = "data/centerloss_sbert_full")
         svm_train(embeddings, partisan_labels)
 
-
-
     dataloaders = get_dataloaders("testdata",batch_size=32, split=False, renew_cache=False)
-    
-    
 
     embeddings, partisan_labels, _ = generate_embeddings(dataloaders['train'], path = "data/centerloss_sbert_full")
     clf_tot = joblib.load("data/svm/svm_model.joblib")

@@ -7,16 +7,11 @@ from sklearn.cluster import AgglomerativeClustering
 import pandas as pd
 import matplotlib.pyplot as plt
 import joblib
-from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 import seaborn as sns
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import normalize
 from partisannet.models.get_embeddings import generate_embeddings
-
-
-
-
 
 def create_eraser(embeddings):
     svm = joblib.load("data/svm/svm_model.joblib")

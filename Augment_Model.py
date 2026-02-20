@@ -1,7 +1,5 @@
-from sentence_transformers import SentenceTransformer
 from peft import PeftModel
 from transformers import AutoModel, AutoTokenizer
-import torch
 
 # 1. Define paths
 adapter_path = "data/centerloss_sbert"

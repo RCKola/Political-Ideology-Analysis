@@ -1,19 +1,16 @@
 
 import torch
-from concept_erasure import LeaceEraser
 from partisannet.data.datamodule import get_dataloaders
-from sklearn.cluster import AgglomerativeClustering, KMeans
+from sklearn.cluster import AgglomerativeClustering
 import pandas as pd
 import matplotlib.pyplot as plt
 import joblib
-from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 import seaborn as sns
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import normalize
 from partisannet.models.get_embeddings import generate_embeddings
 import numpy as np
-
 
 
 def erase(embeddings, eraser=joblib.load("data/svm/linear_eraser.joblib")):

@@ -2,8 +2,6 @@ import sys
 import os
 import matplotlib.pyplot as plt
 import seaborn as sns
-
-
 import umap
 import joblib
 
@@ -24,7 +22,7 @@ def main():
     
     
     
-    embeddings, labels,_ = generate_embeddings(dataloaders['train'], path = "data/centerloss_sbert")
+    embeddings, labels,_ = generate_embeddings(dataloaders['train'], path = "data/centerloss_sbert_full")
     # 3. Train Linear SVM (To find the decision boundary)
     print("Training Linear SVM to find the 'Line'...")
     svm = joblib.load("data/svm/svm_model.joblib")
